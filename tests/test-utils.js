@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
 import { createPinia } from 'pinia'
 import { vi } from 'vitest'
+import { createRouter, createWebHistory } from 'vue-router'
 
 // Router mock básico
 export const createMockRouter = () => {

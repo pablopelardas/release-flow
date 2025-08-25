@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 describe('TemplateEditor', () => {
   // Tests básicos para evitar problemas con Monaco Editor

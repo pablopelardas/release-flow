@@ -1,6 +1,6 @@
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readFile, writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 
 const __filename = fileURLToPath(import.meta.url)

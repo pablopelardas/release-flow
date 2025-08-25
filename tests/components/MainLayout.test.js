@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it } from 'vitest'
 import MainLayout from '../../src/renderer/layouts/MainLayout.vue'
 import { globalMountOptions, setupTestEnvironment } from '../test-utils.js'
 
