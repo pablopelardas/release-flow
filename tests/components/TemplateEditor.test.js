@@ -10,7 +10,7 @@ describe('TemplateEditor', () => {
     try {
       const TemplateEditor = await import('../../src/renderer/components/TemplateEditor.vue')
       expect(TemplateEditor).toBeDefined()
-    } catch (error) {
+    } catch (_error) {
       // Si falla la importación por Monaco Editor, el test pasa igual
       expect(true).toBe(true)
     }
