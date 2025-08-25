@@ -6,6 +6,9 @@
       "Bash(npm run build:main:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "D:\\working\\intuit\\utilities"
+    ]
   }
 }

@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitCommit: (repoPath, message) => ipcRenderer.invoke('git-commit', repoPath, message),
   gitGetCurrentBranch: (repoPath) => ipcRenderer.invoke('git-get-current-branch', repoPath),
   gitIsClean: (repoPath) => ipcRenderer.invoke('git-is-clean', repoPath),
+  gitGetCommits: (repoPath, limit) => ipcRenderer.invoke('git-get-commits', repoPath, limit),
+  gitGetCommitsSinceLastTag: (repoPath) => ipcRenderer.invoke('git-get-commits-since-last-tag', repoPath),
+  gitGetCommitsForReleaseType: (repoPath, currentVersion, releaseType) => ipcRenderer.invoke('git-get-commits-for-release-type', repoPath, currentVersion, releaseType),
 
   // Template engine
   templateRender: (templateContent, data) => ipcRenderer.invoke('template-render', templateContent, data),
@@ -44,6 +47,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dbDeleteTemplate: (id) => ipcRenderer.invoke('db-delete-template', id),
   dbSetConfig: (key, value) => ipcRenderer.invoke('db-set-config', key, value),
   dbGetConfig: (key) => ipcRenderer.invoke('db-get-config', key),
+  dbInsertRelease: (releaseData) => ipcRenderer.invoke('db-insert-release', releaseData),
+  dbListReleases: () => ipcRenderer.invoke('db-list-releases'),
+  dbGetSecondaryRepositories: (mainRepoId) => ipcRenderer.invoke('db-get-secondary-repositories', mainRepoId),
+  dbGetMainRepositories: () => ipcRenderer.invoke('db-get-main-repositories'),
+  dbGetAvailableSecondaryRepositories: (excludeMainRepoId) => ipcRenderer.invoke('db-get-available-secondary-repositories', excludeMainRepoId),
+  dbUpdateSecondaryRepositories: (mainRepoId, secondaryRepoIds) => ipcRenderer.invoke('db-update-secondary-repositories', mainRepoId, secondaryRepoIds),
 
   // Releases
   releaseValidatePrerequisites: (config) => ipcRenderer.invoke('release-validate-prerequisites', config),

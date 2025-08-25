@@ -82,17 +82,26 @@
             <div v-if="currentStep === 1" class="space-y-6">
               <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 <i class="pi pi-folder mr-2 text-blue-500"></i>
-                Selecciona el Repositorio
+                Selecciona el Repositorio Principal
               </h3>
+              
+              <div v-if="repositories.length" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p class="text-sm text-blue-800 dark:text-blue-200">
+                  💡 Solo se muestran repositorios principales. Los tags se replicarán automáticamente en sus repositorios secundarios asociados.
+                </p>
+              </div>
               
               <div v-if="!repositories.length" class="text-center py-8">
                 <i class="pi pi-folder-open text-4xl text-gray-400 mb-4"></i>
                 <p class="text-gray-600 dark:text-gray-400 mb-4">
-                  No hay repositorios configurados
+                  No hay repositorios principales configurados
+                </p>
+                <p class="text-sm text-gray-500 dark:text-gray-500 mb-4">
+                  Solo los repositorios marcados como "principales" pueden generar releases
                 </p>
                 <Button 
                   @click="$router.push('/repositories')" 
-                  label="Ir a Repositorios" 
+                  label="Configurar Repositorios" 
                   outlined
                 />
               </div>
@@ -139,10 +148,16 @@
 
             <!-- Step 2: Version Configuration -->
             <div v-if="currentStep === 2" class="space-y-6">
-              <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                <i class="pi pi-tag mr-2 text-green-500"></i>
-                Configuración de Versión
-              </h3>
+              <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">
+                  <i class="pi pi-tag mr-2 text-green-500"></i>
+                  Configuración de Versión
+                </h3>
+                <div class="bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Tag actual:</span>
+                  <span class="font-mono font-semibold text-gray-900 dark:text-white ml-2">{{ (selectedRepository?.tag_prefix || '') + currentVersion }}</span>
+                </div>
+              </div>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <!-- Major (primero - mayor impacto) -->
@@ -160,8 +175,8 @@
                       <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Cambios que rompen compatibilidad
                       </p>
-                      <div class="text-xs text-gray-500">
-                        {{ currentVersion }} → {{ getVersionPreview('major') }}
+                      <div class="text-sm font-mono font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded">
+                        {{ (selectedRepository?.tag_prefix || '') + currentVersion }} → {{ getVersionPreview('major') }}
                       </div>
                     </div>
                   </template>
@@ -182,8 +197,8 @@
                       <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Nuevas características compatibles
                       </p>
-                      <div class="text-xs text-gray-500">
-                        {{ currentVersion }} → {{ getVersionPreview('minor') }}
+                      <div class="text-sm font-mono font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded">
+                        {{ (selectedRepository?.tag_prefix || '') + currentVersion }} → {{ getVersionPreview('minor') }}
                       </div>
                     </div>
                   </template>
@@ -204,8 +219,8 @@
                       <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Correcciones y mejoras menores
                       </p>
-                      <div class="text-xs text-gray-500">
-                        {{ currentVersion }} → {{ getVersionPreview('patch') }}
+                      <div class="text-sm font-mono font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded">
+                        {{ (selectedRepository?.tag_prefix || '') + currentVersion }} → {{ getVersionPreview('patch') }}
                       </div>
                     </div>
                   </template>
@@ -215,17 +230,21 @@
               <!-- Custom Version Input -->
               <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                 <div class="flex items-center mb-3">
-                  <Checkbox v-model="useCustomVersion" />
+                  <Checkbox v-model="useCustomVersion" :binary="true" />
                   <label class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Usar versión personalizada
                   </label>
                 </div>
-                <InputText 
-                  v-if="useCustomVersion"
-                  v-model="customVersion"
-                  placeholder="e.g., 2.1.0-beta.1"
-                  class="w-full"
-                />
+                <div v-if="useCustomVersion" class="flex">
+                  <span class="flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600 font-mono">
+                    {{ selectedRepository?.tag_prefix || '' }}
+                  </span>
+                  <InputText 
+                    v-model="customVersion"
+                    placeholder="2.1.0-beta.1"
+                    class="rounded-l-none flex-1"
+                  />
+                </div>
               </div>
             </div>
 
@@ -299,7 +318,7 @@
                     <i class="pi pi-tag text-green-500 mr-2"></i>
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Versión</span>
                   </div>
-                  <p class="font-semibold text-gray-900 dark:text-white">{{ getFinalVersion() }}</p>
+                  <p class="font-semibold text-gray-900 dark:text-white">{{ (selectedRepository?.tag_prefix || '') + getFinalVersion() }}</p>
                 </div>
 
                 <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
@@ -322,16 +341,28 @@
                 ></div>
               </div>
 
+              <!-- Secondary Repositories Info -->
+              <div v-if="selectedRepository?.is_main_repository && createTag" class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <h4 class="font-medium text-green-800 dark:text-green-200 mb-2 flex items-center">
+                  <i class="pi pi-link mr-2"></i>
+                  Replicación de Tags
+                </h4>
+                <p class="text-sm text-green-700 dark:text-green-300">
+                  El tag <code>{{ selectedRepository?.tag_prefix || '' }}{{ getFinalVersion() }}</code> se creará también en los repositorios secundarios asociados.
+                </p>
+                <p v-if="secondaryReposInfo" class="text-xs text-green-600 dark:text-green-400 mt-2" v-html="secondaryReposInfo"></p>
+              </div>
+
               <!-- Options -->
               <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-3">
                 <div class="flex items-center">
-                  <Checkbox v-model="createTag" />
+                  <Checkbox v-model="createTag" :binary="true" />
                   <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
                     Crear tag de Git automáticamente
                   </label>
                 </div>
                 <div class="flex items-center">
-                  <Checkbox v-model="saveToFile" />
+                  <Checkbox v-model="saveToFile" :binary="true" />
                   <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
                     Guardar release notes en archivo
                   </label>
@@ -412,7 +443,7 @@
                     {{ release.version }} - {{ release.repository }}
                   </p>
                   <p class="text-sm text-gray-600 dark:text-gray-400">
-                    {{ release.date }} • {{ release.template }}
+                    {{ new Date(release.date).toLocaleDateString('es-ES') }} • {{ release.template }}
                   </p>
                 </div>
               </div>
@@ -446,8 +477,14 @@ import Card from 'primevue/card'
 import ProgressBar from 'primevue/progressbar'
 import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
+import { useRepositoriesStore, useTemplatesStore, useReleasesStore } from '../store'
 
 const router = useRouter()
+
+// Stores
+const repositoriesStore = useRepositoriesStore()
+const templatesStore = useTemplatesStore()
+const releasesStore = useReleasesStore()
 
 // Wizard State
 const showWizard = ref(false)
@@ -463,8 +500,18 @@ const steps = [
   { label: 'Confirmar', icon: 'pi-check' }
 ]
 
-// Step 1: Repository data
-const repositories = ref([])
+// Step 1: Repository data - mostrar solo repositorios principales
+const repositories = computed(() => {
+  const allRepos = repositoriesStore.repositories
+  const mainRepos = allRepos.filter(repo => {
+    // Convertir a número y comprobar si es truthy (1, true, etc.)
+    const value = repo.is_main_repository
+    const isMain = !!value && value != 0
+    return isMain
+  })
+  
+  return mainRepos
+})
 const selectedRepository = ref(null)
 
 // Step 2: Version data
@@ -473,33 +520,8 @@ const useCustomVersion = ref(false)
 const customVersion = ref('')
 const currentVersion = ref('1.0.0')
 
-// Step 3: Template data
-const availableTemplates = ref([
-  {
-    id: 1,
-    name: 'Release Notes Estándar',
-    description: 'Template formal para release notes',
-    content: `# Release Notes v{{version}}`
-  },
-  {
-    id: 2,
-    name: 'Changelog Técnico',
-    description: 'Para desarrolladores y equipos técnicos',
-    content: `# CHANGELOG v{{version}}`
-  },
-  {
-    id: 3,
-    name: 'Release Marketing',
-    description: 'Para comunicación con clientes',
-    content: `# 🎉 Nueva Versión {{version}} Disponible!`
-  },
-  {
-    id: 4,
-    name: 'Minimal',
-    description: 'Template minimalista y limpio',
-    content: `{{version}} ({{date}})`
-  }
-])
+// Step 3: Template data - usar store real
+const availableTemplates = computed(() => templatesStore.templates)
 const selectedTemplate = ref(null)
 
 // Step 4: Preview and options
@@ -507,8 +529,11 @@ const generatedPreview = ref('')
 const createTag = ref(true)
 const saveToFile = ref(true)
 
-// Recent releases
-const recentReleases = ref([])
+// Recent releases - usar store real
+const recentReleases = computed(() => releasesStore.releases)
+
+// Información de repositorios secundarios
+const secondaryReposInfo = ref('')
 
 // Computed properties
 const canProceed = computed(() => {
@@ -556,6 +581,7 @@ const nextStep = () => {
     // Generate preview when entering step 4
     if (currentStep.value === 4) {
       generatePreview()
+      loadSecondaryReposInfo()
     }
   }
 }
@@ -566,12 +592,77 @@ const previousStep = () => {
   }
 }
 
-const selectRepository = (repo) => {
+const selectRepository = async (repo) => {
   selectedRepository.value = repo
-  currentVersion.value = repo.currentVersion || '1.0.0'
+  
+  // Obtener la versión actual del repositorio desde Git (último tag)
+  try {
+    console.log(`🔍 Obteniendo tags para repo: ${repo.name} en path: ${repo.path}`)
+    const tagsResponse = await window.electronAPI.gitGetTags(repo.path, true)
+    console.log('📋 Tags response:', tagsResponse)
+    
+    if (tagsResponse.success && tagsResponse.data && tagsResponse.data.length > 0) {
+      // getTags devuelve array de strings directamente, no objetos con .name
+      const rawTag = tagsResponse.data[0]
+      
+      // Remover prefijos, incluido el prefijo específico del repositorio si existe
+      let latestTag = rawTag
+      if (repo.tag_prefix && rawTag.startsWith(repo.tag_prefix)) {
+        latestTag = rawTag.substring(repo.tag_prefix.length)
+      } else {
+        // Fallback para prefijos comunes
+        latestTag = rawTag.replace(/^v|^[A-Za-z]+v?/, '')
+      }
+      
+      currentVersion.value = latestTag
+      console.log(`✅ Version actual del repo ${repo.name}: ${currentVersion.value}`)
+      console.log('🏷️ Latest tag raw:', rawTag)
+      console.log('🏷️ Tag prefix:', repo.tag_prefix || 'none')
+      console.log('🔄 Preview versions:', {
+        major: getVersionPreview('major'),
+        minor: getVersionPreview('minor'), 
+        patch: getVersionPreview('patch')
+      })
+    } else {
+      currentVersion.value = '0.0.0' // Si no hay tags, empezar desde 0.0.0
+      console.log(`⚠️ No hay tags en ${repo.name}, usando version inicial: ${currentVersion.value}`)
+    }
+  } catch (error) {
+    console.error('Error obteniendo versión del repositorio:', error)
+    currentVersion.value = repo.currentVersion || '1.0.0'
+  }
 }
 
 const getVersionPreview = (type) => {
+  if (!currentVersion.value) return '1.0.0'
+  
+  // Usar currentVersion que se actualiza con el último tag de Git
+  const [major, minor, patch] = currentVersion.value.split('.').map(Number)
+  
+  let nextVersion
+  switch (type) {
+    case 'major':
+      nextVersion = `${major + 1}.0.0`
+      break
+    case 'minor':
+      nextVersion = `${major}.${minor + 1}.0`
+      break
+    case 'patch':
+      nextVersion = `${major}.${minor}.${patch + 1}`
+      break
+    default:
+      nextVersion = currentVersion.value
+  }
+  
+  // Mostrar con el prefijo si hay un repositorio seleccionado
+  const prefix = selectedRepository.value?.tag_prefix || ''
+  return `${prefix}${nextVersion}`
+}
+
+const getVersionNumber = (type) => {
+  if (!currentVersion.value) return '1.0.0'
+  
+  // Usar currentVersion que se actualiza con el último tag de Git
   const [major, minor, patch] = currentVersion.value.split('.').map(Number)
   
   switch (type) {
@@ -590,7 +681,7 @@ const getFinalVersion = () => {
   if (useCustomVersion.value && customVersion.value) {
     return customVersion.value
   }
-  return getVersionPreview(versionType.value)
+  return getVersionNumber(versionType.value)
 }
 
 const selectTemplate = (template) => {
@@ -601,58 +692,226 @@ const previewTemplate = (template) => {
   console.log('Preview template:', template.name)
 }
 
-const generatePreview = () => {
+const generatePreview = async () => {
   if (!selectedTemplate.value || !selectedRepository.value) return
   
-  const mockData = {
-    version: getFinalVersion(),
-    date: new Date().toLocaleDateString('es-ES'),
-    type: versionType.value,
-    commits: [
-      { type: 'feat', subject: 'Nueva funcionalidad de ejemplo' },
-      { type: 'fix', subject: 'Corrección de bugs varios' },
-      { type: 'docs', subject: 'Actualización de documentación' }
-    ]
+  try {
+    console.log('Generating preview for repository:', selectedRepository.value.path)
+    
+    // Obtener commits específicos para el tipo de release seleccionado
+    const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+      selectedRepository.value.path,
+      currentVersion.value,
+      versionType.value
+    )
+    console.log('Git commits response:', commitsResponse)
+    
+    if (!commitsResponse.success) {
+      throw new Error(commitsResponse.error || 'Error obteniendo commits')
+    }
+    
+    // Preparar datos reales para el template
+    const templateData = {
+      version: getFinalVersion(),
+      date: new Date(),
+      type: versionType.value,
+      repository: selectedRepository.value.name,
+      commits: commitsResponse.data.commits || [],
+      fromTag: commitsResponse.data.fromTag || 'inicio',
+      toTag: commitsResponse.data.toTag || 'HEAD',
+      commitsCount: commitsResponse.data.commits?.length || 0,
+      baseVersion: currentVersion.value,
+      releaseType: versionType.value,
+      author: 'Usuario' // Se puede obtener de Git config si está disponible
+    }
+    
+    console.log('Template data:', templateData)
+    
+    // Usar el servicio de templates para renderizar con Liquid.js
+    const renderResponse = await templatesStore.renderTemplate(selectedTemplate.value.content, templateData)
+    console.log('Template render response:', renderResponse)
+    
+    if (renderResponse) {
+      // Convertir Markdown básico a HTML de manera más inteligente
+      let htmlOutput = renderResponse
+        // Headers
+        .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">$1</h1>')
+        .replace(/^## (.+)$/gm, '<h2 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">$1</h2>')
+        .replace(/^### (.+)$/gm, '<h3 class="text-lg font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
+        // Bold text
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
+        // List items - envolver en <ul>
+        .replace(/(^- .+$\n?)+/gm, (match) => {
+          const items = match.trim().split('\n').map(line => 
+            line.replace(/^- (.+)$/, '<li class="mb-1 text-gray-700 dark:text-gray-300">$1</li>')
+          ).join('\n')
+          return `<ul class="list-none space-y-1 mb-4">\n${items}\n</ul>`
+        })
+        // Horizontal rule
+        .replace(/^---$/gm, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
+        // Italic text
+        .replace(/\*([^*]+)\*/g, '<em class="italic text-gray-600 dark:text-gray-400">$1</em>')
+        // Párrafos - convertir saltos dobles en párrafos
+        .split('\n\n')
+        .filter(paragraph => paragraph.trim())
+        .map(paragraph => {
+          // Si ya es HTML (contiene tags), no envolver
+          if (paragraph.includes('<')) return paragraph
+          // Si es texto plano, envolver en párrafo
+          return `<p class="mb-4 text-gray-700 dark:text-gray-300">${paragraph.replace(/\n/g, '<br>')}</p>`
+        })
+        .join('\n')
+      
+      generatedPreview.value = `<div class="space-y-4">${htmlOutput}</div>`
+    } else {
+      generatedPreview.value = 'Error generando preview'
+    }
+    
+  } catch (error) {
+    console.error('Error generating preview:', error)
+    generatedPreview.value = `<div class="text-red-600">Error generando preview: ${error.message}</div>`
   }
-  
-  let preview = selectedTemplate.value.content
-    .replace(/\{\{version\}\}/g, mockData.version)
-    .replace(/\{\{date\}\}/g, mockData.date)
-    .replace(/\{\{type\}\}/g, mockData.type)
-  
-  // Simple HTML conversion
-  preview = preview
-    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-4">$1</h1>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-semibold mb-3">$2</h2>')
-    .replace(/^- (.+)$/gm, '<li class="mb-1">$1</li>')
-  
-  generatedPreview.value = preview
 }
 
 const generateRelease = async () => {
   generatingRelease.value = true
   
   try {
-    // Simulate release generation
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // Add to recent releases
-    recentReleases.value.unshift({
-      id: Date.now(),
-      version: getFinalVersion(),
+    const finalVersion = getFinalVersion()
+    const releaseData = {
+      version: finalVersion,
       repository: selectedRepository.value.name,
+      repositoryPath: selectedRepository.value.path,
       template: selectedTemplate.value.name,
-      date: new Date().toLocaleDateString('es-ES'),
-      content: generatedPreview.value
-    })
+      templateId: selectedTemplate.value.id,
+      date: new Date().toISOString(),
+      content: generatedPreview.value,
+      releaseType: versionType.value,
+      baseVersion: currentVersion.value
+    }
     
-    alert(`✅ Release ${getFinalVersion()} generado exitosamente!`)
+    console.log('🚀 Generando release:', releaseData)
+    
+    // 1. Crear tag de Git si está habilitado
+    if (createTag.value) {
+      console.log('📝 Creando tag de Git...')
+      const tagName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
+      const releaseMessage = `Release ${finalVersion}\n\n${generatedPreview.value.replace(/<[^>]*>/g, '')}`
+      
+      console.log(`🏷️ Tag name: ${tagName}`)
+      
+      // Crear tag en repositorio principal
+      const tagResponse = await window.electronAPI.gitCreateTag(
+        selectedRepository.value.path,
+        tagName,
+        releaseMessage
+      )
+      
+      if (!tagResponse.success) {
+        throw new Error(`Error creando tag en repositorio principal: ${tagResponse.error}`)
+      }
+      console.log('✅ Tag creado en repositorio principal:', tagName)
+      
+      // Si es un repositorio principal, crear tags en repositorios secundarios
+      if (selectedRepository.value.is_main_repository) {
+        console.log('🔗 Obteniendo repositorios secundarios...')
+        const secondaryResponse = await window.electronAPI.dbGetSecondaryRepositories(selectedRepository.value.id)
+        
+        if (secondaryResponse.success && secondaryResponse.data.repositories.length > 0) {
+          console.log(`📦 Creando tags en ${secondaryResponse.data.repositories.length} repositorios secundarios...`)
+          
+          const secondaryErrors = []
+          
+          for (const secondaryRepo of secondaryResponse.data.repositories) {
+            try {
+              // IMPORTANTE: Usar el mismo tag del repositorio principal, no el prefijo del secundario
+              // Esto permite que un repositorio secundario tenga tags de múltiples aplicaciones
+              console.log(`🏷️ Creando tag en ${secondaryRepo.name}: ${tagName} (replicado desde ${selectedRepository.value.name})`)
+              
+              const secondaryTagResponse = await window.electronAPI.gitCreateTag(
+                secondaryRepo.path,
+                tagName, // Usar exactamente el mismo tag que el principal
+                `Release ${finalVersion} (from ${selectedRepository.value.name})\n\n${generatedPreview.value.replace(/<[^>]*>/g, '')}`
+              )
+              
+              if (secondaryTagResponse.success) {
+                console.log(`✅ Tag replicado en ${secondaryRepo.name}: ${tagName}`)
+              } else {
+                console.error(`❌ Error replicando tag en ${secondaryRepo.name}:`, secondaryTagResponse.error)
+                secondaryErrors.push(`${secondaryRepo.name}: ${secondaryTagResponse.error}`)
+              }
+            } catch (error) {
+              console.error(`❌ Error procesando repositorio ${secondaryRepo.name}:`, error)
+              secondaryErrors.push(`${secondaryRepo.name}: ${error.message}`)
+            }
+          }
+          
+          if (secondaryErrors.length > 0) {
+            console.warn('⚠️ Algunos repositorios secundarios tuvieron errores:', secondaryErrors)
+            // No fallar completamente, pero mostrar advertencia
+          }
+        } else {
+          console.log('ℹ️ No hay repositorios secundarios configurados')
+        }
+      }
+    }
+    
+    // 2. Guardar en base de datos
+    console.log('💾 Guardando release en base de datos...')
+    const dbResponse = await releasesStore.saveRelease(releaseData)
+    if (!dbResponse.success) {
+      throw new Error(`Error guardando en BD: ${dbResponse.error}`)
+    }
+    console.log('✅ Release guardado en BD')
+    
+    // 3. Guardar en archivo si está habilitado
+    if (saveToFile.value) {
+      console.log('📁 Guardando archivo de release...')
+      
+      // Preparar contenido del archivo (sin HTML, solo Markdown limpio)
+      const fileContent = generatedPreview.value
+        .replace(/<[^>]*>/g, '') // Remover tags HTML
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+      
+      const saveResponse = await window.electronAPI.saveFileDialog({
+        title: 'Guardar Release Notes',
+        defaultPath: `release-${finalVersion}.md`,
+        filters: [
+          { name: 'Markdown Files', extensions: ['md'] },
+          { name: 'Text Files', extensions: ['txt'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+      
+      if (saveResponse && !saveResponse.canceled && saveResponse.filePath) {
+        console.log('📝 Escribiendo archivo a:', saveResponse.filePath)
+        const writeResponse = await window.electronAPI.writeFile(saveResponse.filePath, fileContent)
+        if (writeResponse.success) {
+          console.log('✅ Archivo guardado exitosamente:', saveResponse.filePath)
+        } else {
+          console.error('❌ Error escribiendo archivo:', writeResponse.error)
+          throw new Error(`Error escribiendo archivo: ${writeResponse.error}`)
+        }
+      } else if (saveResponse && saveResponse.canceled) {
+        console.log('ℹ️ Usuario canceló el guardado de archivo')
+      } else {
+        console.error('❌ Error en dialog de guardado:', saveResponse)
+      }
+    }
+    
+    // 4. Actualizar lista de releases recientes
+    await releasesStore.loadReleases()
+    
+    alert(`✅ Release ${finalVersion} generado exitosamente!`)
     showWizard.value = false
     resetWizardData()
     
   } catch (error) {
-    console.error('Error generating release:', error)
-    alert('❌ Error generando el release')
+    console.error('❌ Error generating release:', error)
+    alert(`❌ Error generando el release: ${error.message}`)
   } finally {
     generatingRelease.value = false
   }
@@ -670,27 +929,42 @@ const downloadRelease = (release) => {
   console.log('Download release:', release)
 }
 
-onMounted(() => {
-  // Load mock repositories
-  repositories.value = [
-    {
-      id: 1,
-      name: 'release-flow',
-      path: 'D:/working/release-flow',
-      branch: 'main',
-      lastCommit: 'hace 2 horas',
-      status: 'clean',
-      currentVersion: '1.0.0'
-    },
-    {
-      id: 2,
-      name: 'project-demo',
-      path: 'D:/projects/demo',
-      branch: 'develop',
-      lastCommit: 'hace 1 día',
-      status: 'dirty',
-      currentVersion: '0.5.2'
+const loadSecondaryReposInfo = async () => {
+  if (!selectedRepository.value?.is_main_repository) {
+    secondaryReposInfo.value = ''
+    return
+  }
+  
+  try {
+    const response = await window.electronAPI.dbGetSecondaryRepositories(selectedRepository.value.id)
+    if (response.success && response.data.repositories.length > 0) {
+      const repoNames = response.data.repositories.map(repo => `<strong>${repo.name}</strong>`).join(', ')
+      secondaryReposInfo.value = `📦 Se replicará en ${response.data.repositories.length} repositorio(s): ${repoNames}`
+    } else {
+      secondaryReposInfo.value = '⚠️ No hay repositorios secundarios configurados'
     }
-  ]
+  } catch (error) {
+    console.error('Error loading secondary repos info:', error)
+    secondaryReposInfo.value = ''
+  }
+}
+
+onMounted(async () => {
+  // Cargar datos reales de los stores
+  console.log('Loading releases data...')
+  
+  try {
+    await Promise.all([
+      repositoriesStore.loadRepositories(),
+      templatesStore.loadTemplates(),
+      releasesStore.loadReleases()
+    ])
+    
+    console.log('Repositories loaded:', repositoriesStore.repositories)
+    console.log('Templates loaded:', templatesStore.templates)
+    console.log('Releases loaded:', releasesStore.releases)
+  } catch (error) {
+    console.error('Error loading releases data:', error)
+  }
 })
 </script>

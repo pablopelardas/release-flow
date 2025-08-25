@@ -14,6 +14,8 @@ export interface Repository {
   branch: string
   current_branch?: string
   is_clean?: boolean
+  tag_prefix?: string
+  is_main_repository?: boolean
   active: boolean
   created_at: string
   updated_at: string
@@ -127,6 +129,8 @@ export class DatabaseService {
         branch TEXT DEFAULT 'main',
         current_branch TEXT,
         is_clean BOOLEAN,
+        tag_prefix TEXT DEFAULT '',
+        is_main_repository BOOLEAN DEFAULT 0,
         active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -176,6 +180,17 @@ export class DatabaseService {
         FOREIGN KEY (release_id) REFERENCES releases(id) ON DELETE CASCADE
       );
 
+      -- Tabla de relaciones entre repositorios principales y secundarios
+      CREATE TABLE IF NOT EXISTS repository_relationships (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        main_repository_id INTEGER NOT NULL,
+        secondary_repository_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (main_repository_id) REFERENCES repositories(id) ON DELETE CASCADE,
+        FOREIGN KEY (secondary_repository_id) REFERENCES repositories(id) ON DELETE CASCADE,
+        UNIQUE(main_repository_id, secondary_repository_id)
+      );
+
       -- Índices para mejorar performance
       CREATE INDEX IF NOT EXISTS idx_repositories_active ON repositories(active);
       CREATE INDEX IF NOT EXISTS idx_repositories_name ON repositories(name);
@@ -184,6 +199,8 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_releases_created_at ON releases(created_at);
       CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
       CREATE INDEX IF NOT EXISTS idx_templates_name ON templates(name);
+      CREATE INDEX IF NOT EXISTS idx_repo_relationships_main ON repository_relationships(main_repository_id);
+      CREATE INDEX IF NOT EXISTS idx_repo_relationships_secondary ON repository_relationships(secondary_repository_id);
 
       -- Trigger para actualizar updated_at automáticamente
       CREATE TRIGGER IF NOT EXISTS update_repositories_updated_at 
@@ -400,8 +417,8 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   async insertRepository(repoData: Partial<Repository>): Promise<DatabaseResult<{ id: number }>> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO repositories (name, path, url, branch, current_branch, is_clean, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO repositories (name, path, url, branch, current_branch, is_clean, tag_prefix, is_main_repository, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       const result = stmt.run(
@@ -411,6 +428,8 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         repoData.branch || 'main',
         repoData.current_branch || null,
         repoData.is_clean !== undefined ? (repoData.is_clean ? 1 : 0) : null,
+        repoData.tag_prefix || '',
+        repoData.is_main_repository ? 1 : 0,
         repoData.active !== false ? 1 : 0
       )
 
@@ -1014,11 +1033,298 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   }
 
   /**
+   * Inserta un nuevo release con datos del frontend
+   */
+  async insertReleaseData(releaseData: {
+    version: string
+    repository: string
+    repositoryPath: string
+    template: string
+    templateId: number
+    date: string
+    content: string
+    releaseType: string
+    baseVersion: string
+  }): Promise<DatabaseResult<{ id: number }>> {
+    try {
+      // Primero, obtener el repository_id por el nombre
+      const repoStmt = this.db.prepare('SELECT id FROM repositories WHERE name = ?')
+      const repo = repoStmt.get(releaseData.repository) as { id: number } | undefined
+      
+      if (!repo) {
+        return {
+          success: false,
+          error: `Repositorio '${releaseData.repository}' no encontrado en la base de datos`,
+        }
+      }
+
+      // Insertar el release
+      const stmt = this.db.prepare(`
+        INSERT INTO releases (repository_id, version, tag_name, release_notes, commit_count)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+
+      // Contar commits en el contenido (aproximación)
+      const commitCount = (releaseData.content.match(/- /g) || []).length
+
+      const result = stmt.run(
+        repo.id,
+        releaseData.version,
+        releaseData.version, // usar version como tag_name
+        releaseData.content,
+        commitCount
+      )
+
+      // Insertar en historial
+      const historyStmt = this.db.prepare(`
+        INSERT INTO release_history (release_id, action, details)
+        VALUES (?, 'created', ?)
+      `)
+      historyStmt.run(result.lastInsertRowid, JSON.stringify(releaseData))
+
+      return {
+        success: true,
+        data: { id: result.lastInsertRowid as number },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error insertando release: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Lista todos los releases con información del repositorio
+   */
+  async listAllReleases(): Promise<DatabaseResult<Array<{
+    id: number
+    version: string
+    repository: string
+    template: string
+    date: string
+    content: string
+    created_at: string
+  }>>> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT 
+          r.id,
+          r.version,
+          repo.name as repository,
+          r.tag_name,
+          r.release_notes as content,
+          r.created_at,
+          'Unknown' as template
+        FROM releases r
+        JOIN repositories repo ON r.repository_id = repo.id
+        ORDER BY r.created_at DESC
+      `)
+      
+      const releases = stmt.all() as Array<{
+        id: number
+        version: string
+        repository: string
+        tag_name: string
+        content: string
+        created_at: string
+        template: string
+      }>
+
+      return {
+        success: true,
+        data: releases.map(release => ({
+          id: release.id,
+          version: release.version,
+          repository: release.repository,
+          template: release.template,
+          date: release.created_at,
+          content: release.content || '',
+          created_at: release.created_at
+        }))
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error listando releases: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
    * Cierra la conexión a la base de datos
    */
   close(): void {
     if (this.db) {
       this.db.close()
+    }
+  }
+
+  // ===== GESTIÓN DE RELACIONES ENTRE REPOSITORIOS =====
+
+  /**
+   * Agrega un repositorio secundario a un repositorio principal
+   */
+  async addSecondaryRepository(mainRepoId: number, secondaryRepoId: number): Promise<DatabaseResult> {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT OR IGNORE INTO repository_relationships (main_repository_id, secondary_repository_id)
+        VALUES (?, ?)
+      `)
+      
+      const result = stmt.run(mainRepoId, secondaryRepoId)
+      
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error agregando repositorio secundario: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Remueve un repositorio secundario de un repositorio principal
+   */
+  async removeSecondaryRepository(mainRepoId: number, secondaryRepoId: number): Promise<DatabaseResult> {
+    try {
+      const stmt = this.db.prepare(`
+        DELETE FROM repository_relationships 
+        WHERE main_repository_id = ? AND secondary_repository_id = ?
+      `)
+      
+      const result = stmt.run(mainRepoId, secondaryRepoId)
+      
+      if (result.changes === 0) {
+        return {
+          success: false,
+          error: 'Relación no encontrada',
+        }
+      }
+
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error removiendo repositorio secundario: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Obtiene los repositorios secundarios de un repositorio principal
+   */
+  async getSecondaryRepositories(mainRepoId: number): Promise<DatabaseResult<{ repositories: Repository[] }>> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT r.* 
+        FROM repositories r
+        JOIN repository_relationships rr ON r.id = rr.secondary_repository_id
+        WHERE rr.main_repository_id = ? AND r.active = 1
+        ORDER BY r.name
+      `)
+      
+      const repositories = stmt.all(mainRepoId) as Repository[]
+
+      return {
+        success: true,
+        data: { repositories },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error obteniendo repositorios secundarios: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Obtiene todos los repositorios principales (que tienen is_main_repository = 1)
+   */
+  async getMainRepositories(): Promise<DatabaseResult<{ repositories: Repository[] }>> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT * FROM repositories 
+        WHERE is_main_repository = 1 AND active = 1 
+        ORDER BY name
+      `)
+      
+      const repositories = stmt.all() as Repository[]
+
+      return {
+        success: true,
+        data: { repositories },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error obteniendo repositorios principales: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Obtiene todos los repositorios secundarios disponibles (que no son principales)
+   */
+  async getAvailableSecondaryRepositories(excludeMainRepoId?: number): Promise<DatabaseResult<{ repositories: Repository[] }>> {
+    try {
+      let query = `
+        SELECT * FROM repositories 
+        WHERE is_main_repository = 0 AND active = 1
+      `
+      const params: any[] = []
+      
+      if (excludeMainRepoId) {
+        query += ` AND id != ?`
+        params.push(excludeMainRepoId)
+      }
+      
+      query += ` ORDER BY name`
+      
+      const stmt = this.db.prepare(query)
+      const repositories = params.length > 0 ? stmt.all(...params) as Repository[] : stmt.all() as Repository[]
+
+      return {
+        success: true,
+        data: { repositories },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error obteniendo repositorios secundarios disponibles: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Actualiza múltiples relaciones de repositorio secundario
+   */
+  async updateSecondaryRepositories(mainRepoId: number, secondaryRepoIds: number[]): Promise<DatabaseResult> {
+    try {
+      const transaction = this.db.transaction(() => {
+        // Eliminar relaciones existentes
+        const deleteStmt = this.db.prepare('DELETE FROM repository_relationships WHERE main_repository_id = ?')
+        deleteStmt.run(mainRepoId)
+        
+        // Agregar nuevas relaciones
+        const insertStmt = this.db.prepare(`
+          INSERT INTO repository_relationships (main_repository_id, secondary_repository_id)
+          VALUES (?, ?)
+        `)
+        
+        for (const secondaryId of secondaryRepoIds) {
+          insertStmt.run(mainRepoId, secondaryId)
+        }
+      })
+      
+      transaction()
+      
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error actualizando repositorios secundarios: ${(error as Error).message}`,
+      }
     }
   }
 

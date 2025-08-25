@@ -294,5 +294,59 @@ ${release.tag ? `Tag: ${release.tag}` : ''}
     clearCurrentRelease() {
       this.currentRelease = null
     },
+
+    // Database operations
+    async saveRelease(releaseData) {
+      this.setLoading(true)
+      this.clearError()
+      
+      try {
+        // Guardar release en base de datos usando IPC
+        const response = await window.electronAPI.dbInsertRelease(releaseData)
+        
+        if (response.success) {
+          // Agregar a la lista local
+          const newRelease = {
+            id: response.data.id || Date.now(),
+            ...releaseData,
+            created_at: releaseData.date
+          }
+          this.releases.unshift(newRelease)
+          this.currentRelease = newRelease
+          
+          return { success: true, data: newRelease }
+        } else {
+          throw new Error(response.error || 'Error saving release to database')
+        }
+      } catch (error) {
+        console.error('Error saving release:', error)
+        this.setError(error.message)
+        return { success: false, error: error.message }
+      } finally {
+        this.setLoading(false)
+      }
+    },
+
+    async loadReleases() {
+      this.setLoading(true)
+      this.clearError()
+      
+      try {
+        const response = await window.electronAPI.dbListReleases()
+        
+        if (response.success) {
+          this.releases = response.data || []
+          return { success: true, data: this.releases }
+        } else {
+          throw new Error(response.error || 'Error loading releases from database')
+        }
+      } catch (error) {
+        console.error('Error loading releases:', error)
+        this.setError(error.message)
+        return { success: false, error: error.message }
+      } finally {
+        this.setLoading(false)
+      }
+    },
   },
 })

@@ -297,6 +297,39 @@ ipcMain.handle('git-is-clean', async (_event, repoPath) => {
   }
 })
 
+ipcMain.handle('git-get-commits', async (_event, repoPath, limit = 50) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getCommits(repoPath, limit)
+    return result
+  } catch (error) {
+    console.error('Error en git-get-commits:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('git-get-commits-since-last-tag', async (_event, repoPath) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getCommitsSinceLastTag(repoPath)
+    return result
+  } catch (error) {
+    console.error('Error en git-get-commits-since-last-tag:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('git-get-commits-for-release-type', async (_event, repoPath, currentVersion, releaseType) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getCommitsForReleaseType(repoPath, currentVersion, releaseType)
+    return result
+  } catch (error) {
+    console.error('Error en git-get-commits-for-release-type:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
 // Template Service Handlers
 ipcMain.handle('template-render', async (_event, templateContent, data) => {
   try {
@@ -451,6 +484,80 @@ ipcMain.handle('db-get-config', async (_event, key) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-get-config:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+// Release Database Handlers
+ipcMain.handle('db-insert-release', async (_event, releaseData) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = await databaseService.insertReleaseData(releaseData)
+    return result
+  } catch (error) {
+    console.error('Error en db-insert-release:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('db-list-releases', async (_event) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = await databaseService.listAllReleases()
+    return result
+  } catch (error) {
+    console.error('Error en db-list-releases:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+// Repository Relationships Handlers
+ipcMain.handle('db-get-secondary-repositories', async (_event, mainRepoId) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = await databaseService.getSecondaryRepositories(mainRepoId)
+    return result
+  } catch (error) {
+    console.error('Error en db-get-secondary-repositories:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('db-get-main-repositories', async (_event) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = await databaseService.getMainRepositories()
+    return result
+  } catch (error) {
+    console.error('Error en db-get-main-repositories:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('db-get-available-secondary-repositories', async (_event, excludeMainRepoId) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = await databaseService.getAvailableSecondaryRepositories(excludeMainRepoId)
+    return result
+  } catch (error) {
+    console.error('Error en db-get-available-secondary-repositories:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('db-update-secondary-repositories', async (_event, mainRepoId, secondaryRepoIds) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    
+    console.log('IPC Handler - Update secondary repositories:', {
+      mainRepoId: typeof mainRepoId + ' ' + mainRepoId,
+      secondaryRepoIds: Array.isArray(secondaryRepoIds) ? secondaryRepoIds.map(id => typeof id + ' ' + id) : secondaryRepoIds
+    })
+    
+    const result = await databaseService.updateSecondaryRepositories(Number(mainRepoId), secondaryRepoIds.map(id => Number(id)))
+    return result
+  } catch (error) {
+    console.error('Error en db-update-secondary-repositories:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
