@@ -91,3 +91,5 @@ release/
 
 # Test coverage
 coverage/
+releaseflow-dev.db-shm
+releaseflow-dev.db-wal
