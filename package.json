@@ -1,0 +1,45 @@
+{
+  "name": "releaseflow-electron",
+  "version": "1.0.0",
+  "description": "ReleaseFlow Desktop - Aplicación Electron para gestión automatizada de releases",
+  "main": "src/main/main.js",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"electron src/main/main.js\"",
+    "build": "vite build",
+    "electron": "electron .",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint src --ext .js,.ts,.vue",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "electron",
+    "vue",
+    "release-management",
+    "git-automation"
+  ],
+  "author": "Intuit Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitejs/plugin-vue": "^4.5.0",
+    "@vue/test-utils": "^2.4.3",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
+    "electron": "^37.3.0",
+    "eslint": "^8.55.0",
+    "jsdom": "^23.0.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vite-plugin-electron": "^0.15.5",
+    "vitest": "^1.0.4"
+  },
+  "dependencies": {
+    "pinia": "^2.1.7",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5"
+  }
+}

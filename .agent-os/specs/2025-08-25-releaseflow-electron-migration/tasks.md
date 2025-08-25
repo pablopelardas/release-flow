@@ -2,15 +2,15 @@
 
 ## Tasks
 
-- [ ] 1. Configuración inicial del proyecto Electron + Vue 3
-  - [ ] 1.1 Escribir tests para estructura del proyecto y configuración básica
-  - [ ] 1.2 Inicializar proyecto con npm y configuración de TypeScript
-  - [ ] 1.3 Instalar Electron 37.3 y dependencias core (Vue 3, Vite, Pinia)
-  - [ ] 1.4 Configurar estructura de carpetas (main, renderer, preload)
-  - [ ] 1.5 Implementar ventana principal de Electron con configuración segura
-  - [ ] 1.6 Configurar Vite para desarrollo con hot-reload
-  - [ ] 1.7 Implementar context bridge básico para IPC
-  - [ ] 1.8 Verificar que todos los tests de configuración pasen
+- [x] 1. Configuración inicial del proyecto Electron + Vue 3
+  - [x] 1.1 Escribir tests para estructura del proyecto y configuración básica
+  - [x] 1.2 Inicializar proyecto con npm y configuración de TypeScript
+  - [x] 1.3 Instalar Electron 37.3 y dependencias core (Vue 3, Vite, Pinia)
+  - [x] 1.4 Configurar estructura de carpetas (main, renderer, preload)
+  - [x] 1.5 Implementar ventana principal de Electron con configuración segura
+  - [x] 1.6 Configurar Vite para desarrollo con hot-reload
+  - [x] 1.7 Implementar context bridge básico para IPC
+  - [x] 1.8 Verificar que todos los tests de configuración pasen
 
 - [ ] 2. Migración de servicios backend a JavaScript/TypeScript
   - [ ] 2.1 Escribir tests para GitService con simple-git
