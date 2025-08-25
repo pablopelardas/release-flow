@@ -55,18 +55,33 @@
 </template>
 
 <script>
-import { computed } from 'vue'
-import { useAppStore } from '../store'
+import { computed, onMounted } from 'vue'
+import { useAppStore, useRepositoriesStore, useTemplatesStore, useReleasesStore } from '../store'
 
 export default {
   name: 'Dashboard',
   setup() {
-    const store = useAppStore()
+    const appStore = useAppStore()
+    const repositoriesStore = useRepositoriesStore()
+    const templatesStore = useTemplatesStore()
+    const releasesStore = useReleasesStore()
+
+    onMounted(async () => {
+      // Inicializar la aplicación si no se ha hecho
+      if (!appStore.lastActivity) {
+        await appStore.initializeApp()
+      }
+    })
 
     return {
-      repositoriesCount: computed(() => store.repositoriesCount),
-      templatesCount: computed(() => store.templatesCount),
-      releasesCount: computed(() => store.releasesCount),
+      // Contadores reactivos
+      repositoriesCount: computed(() => repositoriesStore.repositoriesCount),
+      templatesCount: computed(() => templatesStore.templatesCount),
+      releasesCount: computed(() => releasesStore.releasesCount),
+      
+      // Estados de carga
+      loading: computed(() => appStore.loading),
+      error: computed(() => appStore.error),
     }
   },
 }

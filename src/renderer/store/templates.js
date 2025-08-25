@@ -50,10 +50,13 @@ export const useTemplatesStore = defineStore('templates', {
       this.clearError()
       
       try {
+        console.log(`[Store] loadTemplates called with category:`, category)
         const response = await window.electronAPI.dbGetTemplates(category)
+        console.log(`[Store] loadTemplates response:`, response)
         
         if (response.success) {
           this.templates = response.data.templates || []
+          console.log(`[Store] Set templates to:`, this.templates)
         } else {
           throw new Error(response.error || 'Error loading templates')
         }
@@ -69,11 +72,13 @@ export const useTemplatesStore = defineStore('templates', {
       this.clearError()
       
       try {
-        // Cargar templates predefinidos desde el servicio
-        const response = await window.electronAPI.templateLoad('predefined')
+        console.log(`[Store] loadPredefinedTemplates called`)
+        const response = await window.electronAPI.dbGetTemplates('predefined')
+        console.log(`[Store] loadPredefinedTemplates response:`, response)
         
         if (response.success && response.data.templates) {
           this.predefinedTemplates = response.data.templates
+          console.log(`[Store] Set predefinedTemplates to:`, this.predefinedTemplates)
         }
       } catch (error) {
         console.error('Error loading predefined templates:', error)
@@ -248,6 +253,29 @@ export const useTemplatesStore = defineStore('templates', {
         console.error('Error importing template:', error)
         this.setError(error.message)
         throw error
+      }
+    },
+
+    async deleteTemplate(templateId) {
+      this.setLoading(true)
+      this.clearError()
+      
+      try {
+        const response = await window.electronAPI.dbDeleteTemplate(templateId)
+        
+        if (response.success) {
+          // Remover de la lista local
+          this.templates = this.templates.filter(t => t.id !== templateId)
+          return true
+        } else {
+          throw new Error(response.error || 'Error deleting template')
+        }
+      } catch (error) {
+        console.error('Error deleting template:', error)
+        this.setError(error.message)
+        throw error
+      } finally {
+        this.setLoading(false)
       }
     },
 

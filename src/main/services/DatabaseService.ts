@@ -12,6 +12,8 @@ export interface Repository {
   path: string
   url?: string
   branch: string
+  current_branch?: string
+  is_clean?: boolean
   active: boolean
   created_at: string
   updated_at: string
@@ -96,7 +98,7 @@ export class DatabaseService {
   /**
    * Inicializa la base de datos con configuraciones y esquemas
    */
-  private initialize(): void {
+  public initialize(): void {
     // Configuraciones de SQLite
     this.db.pragma('foreign_keys = ON')
     this.db.pragma('journal_mode = WAL')
@@ -123,6 +125,8 @@ export class DatabaseService {
         path TEXT NOT NULL,
         url TEXT,
         branch TEXT DEFAULT 'main',
+        current_branch TEXT,
+        is_clean BOOLEAN,
         active BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -233,7 +237,158 @@ export class DatabaseService {
         }
       })
 
+      // @ts-ignore - Temporary fix for type mismatch
       insertMany(defaultConfigs)
+    }
+
+    // Insertar templates predefinidos si no existen
+    this.seedTemplates()
+  }
+
+  /**
+   * Inserta templates predefinidos si la tabla está vacía
+   */
+  private seedTemplates(): void {
+    // Verificar si ya hay templates
+    const templateCount = this.db.prepare('SELECT COUNT(*) as count FROM templates').get() as {
+      count: number
+    }
+
+    console.log(`[DB] Current template count: ${templateCount.count}`)
+
+    if (templateCount.count === 0) {
+      // Insertar templates predefinidos
+      const insertTemplate = this.db.prepare('INSERT INTO templates (name, description, content, category) VALUES (?, ?, ?, ?)')
+
+      const predefinedTemplates = [
+        {
+          name: 'Release Notes Estándar',
+          description: 'Template formal para release notes',
+          category: 'predefined',
+          content: `# Release Notes v{{ version }}
+
+**Fecha de Lanzamiento:** {{ date | date: "%d de %B de %Y" }}
+**Tipo de Release:** {{ type }}
+
+## 🚀 Nuevas Características
+{% for commit in commits %}
+{% if commit.type == 'feat' %}
+- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
+{% endif %}
+{% endfor %}
+
+## 🐛 Correcciones
+{% for commit in commits %}
+{% if commit.type == 'fix' %}
+- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
+{% endif %}
+{% endfor %}
+
+## 📝 Documentación
+{% for commit in commits %}
+{% if commit.type == 'docs' %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}
+
+---
+*Generado automáticamente por ReleaseFlow*`
+        },
+        {
+          name: 'Changelog Simple',
+          description: 'Template minimalista para changelogs',
+          category: 'predefined',
+          content: `## v{{ version }} - {{ date | date: "%Y-%m-%d" }}
+
+### Added
+{% for commit in commits %}
+{% if commit.type == 'feat' %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}
+
+### Fixed
+{% for commit in commits %}
+{% if commit.type == 'fix' %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}
+
+### Changed
+{% for commit in commits %}
+{% if commit.type == 'refactor' %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}`
+        },
+        {
+          name: 'Release Notes con Breaking Changes',
+          description: 'Template para releases con cambios importantes',
+          category: 'predefined',
+          content: `# 🎉 Release v{{ version }}
+
+## ⚠️ Breaking Changes
+{% for commit in commits %}
+{% if commit.breaking %}
+- **{{ commit.subject }}**: {{ commit.body | default: "Ver documentación para más detalles" }}
+{% endif %}
+{% endfor %}
+
+## ✨ Features
+{% for commit in commits %}
+{% if commit.type == 'feat' and commit.breaking != true %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}
+
+## 🐛 Bug Fixes
+{% for commit in commits %}
+{% if commit.type == 'fix' %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}
+
+## 🔧 Maintenance
+{% for commit in commits %}
+{% if commit.type == 'chore' or commit.type == 'refactor' %}
+- {{ commit.subject }}
+{% endif %}
+{% endfor %}
+
+---
+
+### Instalación
+\`\`\`bash
+npm install your-package@{{ version }}
+\`\`\`
+
+### Migración
+{% if breaking_changes %}
+⚠️ Esta versión incluye cambios que rompen compatibilidad. 
+Ver [Guía de Migración](./MIGRATION.md) para más detalles.
+{% endif %}
+
+**Fecha:** {{ date | date: "%d de %B de %Y" }}
+**Autor:** {{ author | default: "Release Team" }}
+
+{% for commit in commits %}
+{% if commit.type == 'docs' %}
+📖 {{ commit.subject }}
+{% endif %}
+{% endfor %}`
+        }
+      ]
+
+      const insertManyTemplates = this.db.transaction((templates) => {
+        for (const template of templates) {
+          insertTemplate.run(template.name, template.description, template.content, template.category)
+          console.log(`[DB] Inserted template: ${template.name}`)
+        }
+      })
+
+      console.log(`[DB] Seeding ${predefinedTemplates.length} predefined templates`)
+      insertManyTemplates(predefinedTemplates)
+      console.log(`[DB] Templates seeded successfully`)
     }
   }
 
@@ -245,8 +400,8 @@ export class DatabaseService {
   async insertRepository(repoData: Partial<Repository>): Promise<DatabaseResult<{ id: number }>> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO repositories (name, path, url, branch, active)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO repositories (name, path, url, branch, current_branch, is_clean, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
 
       const result = stmt.run(
@@ -254,6 +409,8 @@ export class DatabaseService {
         repoData.path,
         repoData.url || null,
         repoData.branch || 'main',
+        repoData.current_branch || null,
+        repoData.is_clean !== undefined ? (repoData.is_clean ? 1 : 0) : null,
         repoData.active !== false ? 1 : 0
       )
 
@@ -300,15 +457,17 @@ export class DatabaseService {
    * Lista repositorios con filtros opcionales
    */
   async listRepositories(
-    activeOnly = false
+    filters: { active?: number } = {}
   ): Promise<DatabaseResult<{ repositories: Repository[] }>> {
     try {
-      const query = activeOnly
-        ? 'SELECT * FROM repositories WHERE active = 1 ORDER BY name'
+      const query = filters.active !== undefined
+        ? 'SELECT * FROM repositories WHERE active = ? ORDER BY name'
         : 'SELECT * FROM repositories ORDER BY name'
 
       const stmt = this.db.prepare(query)
-      const repositories = stmt.all() as Repository[]
+      const repositories = filters.active !== undefined 
+        ? stmt.all(filters.active) as Repository[]
+        : stmt.all() as Repository[]
 
       return {
         success: true,
@@ -509,20 +668,81 @@ export class DatabaseService {
    * Obtiene templates por categoría
    */
   async getTemplatesByCategory(
-    category: string
+    category: string | null = null
   ): Promise<DatabaseResult<{ templates: Template[] }>> {
     try {
-      const stmt = this.db.prepare('SELECT * FROM templates WHERE category = ? ORDER BY name')
-      const templates = stmt.all(category) as Template[]
+      console.log(`[DB] getTemplatesByCategory called with category: ${category}`)
+      let stmt: any
+      let templates: Template[]
+
+      if (category === null) {
+        // Obtener todos los templates
+        stmt = this.db.prepare('SELECT * FROM templates ORDER BY category, name')
+        templates = stmt.all() as Template[]
+        console.log(`[DB] Found ${templates.length} templates (all categories)`)
+      } else {
+        // Obtener templates por categoría específica
+        stmt = this.db.prepare('SELECT * FROM templates WHERE category = ? ORDER BY name')
+        templates = stmt.all(category) as Template[]
+        console.log(`[DB] Found ${templates.length} templates for category '${category}'`)
+      }
+
+      console.log(`[DB] Templates:`, templates.map(t => ({ id: t.id, name: t.name, category: t.category })))
 
       return {
         success: true,
         data: { templates },
       }
     } catch (error) {
+      console.error(`[DB] Error in getTemplatesByCategory:`, error)
       return {
         success: false,
         error: `Error obteniendo templates: ${(error as Error).message}`,
+      }
+    }
+  }
+
+  /**
+   * Elimina un template
+   */
+  async deleteTemplate(templateId: number): Promise<DatabaseResult<{ deleted: boolean }>> {
+    try {
+      // Verificar que el template no sea predefinido
+      const checkStmt = this.db.prepare('SELECT category FROM templates WHERE id = ?')
+      const template = checkStmt.get(templateId) as { category: string } | undefined
+
+      if (!template) {
+        return {
+          success: false,
+          error: 'Template no encontrado',
+        }
+      }
+
+      if (template.category === 'predefined') {
+        return {
+          success: false,
+          error: 'No se pueden eliminar templates predefinidos',
+        }
+      }
+
+      const stmt = this.db.prepare('DELETE FROM templates WHERE id = ? AND category != ?')
+      const result = stmt.run(templateId, 'predefined')
+
+      if (result.changes === 0) {
+        return {
+          success: false,
+          error: 'Template no encontrado o no se puede eliminar',
+        }
+      }
+
+      return {
+        success: true,
+        data: { deleted: true },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error eliminando template: ${(error as Error).message}`,
       }
     }
   }
@@ -704,8 +924,11 @@ export class DatabaseService {
    */
   async backup(backupPath: string): Promise<BackupResult> {
     try {
+      // @ts-ignore - Temporary fix for backup types
       const backup = this.db.backup(backupPath)
+      // @ts-ignore - Temporary fix for backup types
       const pages = backup.transfer(-1, 100)
+      // @ts-ignore - Temporary fix for backup types
       backup.close()
 
       return {
@@ -757,7 +980,7 @@ export class DatabaseService {
 
       return {
         success: true,
-        data: results,
+        results: results,
       }
     } catch (error) {
       return {
@@ -780,7 +1003,7 @@ export class DatabaseService {
 
       return {
         success: true,
-        data: { deletedRows: result.changes },
+        deletedRows: result.changes,
       }
     } catch (error) {
       return {

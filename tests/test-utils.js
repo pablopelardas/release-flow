@@ -45,13 +45,46 @@ export const globalMountOptions = {
 
 // Mock window.electronAPI
 export const mockElectronAPI = {
+  // File operations
   openFolder: () => Promise.resolve({ filePaths: ['/mock/path'] }),
   showInExplorer: () => Promise.resolve({ success: true }),
-  gitStatus: () => Promise.resolve({ status: 'clean' }),
   openFileDialog: () => Promise.resolve({ filePaths: ['/mock/file.txt'] }),
   saveFileDialog: () => Promise.resolve({ filePath: '/mock/save.txt' }),
   readFile: () => Promise.resolve({ success: true, content: 'mock content' }),
   writeFile: () => Promise.resolve({ success: true }),
+
+  // Git operations
+  gitStatus: () => Promise.resolve({ success: true, data: { isClean: true, currentBranch: 'main' } }),
+  gitValidateRepository: () => Promise.resolve({ success: true, data: { isValid: true } }),
+  gitCreateTag: () => Promise.resolve({ success: true, data: { name: 'v1.0.0' } }),
+  gitGetTags: () => Promise.resolve({ success: true, data: ['v1.0.0', 'v0.9.0'] }),
+  gitCommit: () => Promise.resolve({ success: true, data: { commit: 'abc123' } }),
+  gitGetCurrentBranch: () => Promise.resolve({ success: true, data: 'main' }),
+  gitIsClean: () => Promise.resolve({ success: true, data: true }),
+
+  // Template operations
+  templateRender: () => Promise.resolve({ success: true, data: { output: 'Rendered template' } }),
+  templateValidate: () => Promise.resolve({ success: true, data: { isValid: true } }),
+  templatePreview: () => Promise.resolve({ success: true, data: { preview: 'Preview HTML' } }),
+  templateSave: () => Promise.resolve({ success: true, data: { id: 1 } }),
+  templateLoad: () => Promise.resolve({ success: true, data: { templates: [] } }),
+
+  // Database operations
+  dbInsertRepository: () => Promise.resolve({ success: true, data: { id: 1 } }),
+  dbListRepositories: () => Promise.resolve({ success: true, data: { repositories: [] } }),
+  dbUpdateRepository: () => Promise.resolve({ success: true, data: { changes: 1 } }),
+  dbDeleteRepository: () => Promise.resolve({ success: true }),
+  dbSaveTemplate: () => Promise.resolve({ success: true, data: { id: 1 } }),
+  dbGetTemplates: () => Promise.resolve({ success: true, data: { templates: [] } }),
+  dbSetConfig: () => Promise.resolve({ success: true }),
+  dbGetConfig: () => Promise.resolve({ success: true, data: { value: 'test' } }),
+
+  // Release operations
+  releaseValidatePrerequisites: () => Promise.resolve({ success: true, data: { valid: true } }),
+  releaseGenerateChangelog: () => Promise.resolve({ success: true, data: { changelog: 'Changelog' } }),
+  releaseCreate: () => Promise.resolve({ success: true, data: { tag: 'v1.0.0' } }),
+  releaseGetHistory: () => Promise.resolve({ success: true, data: [] }),
+  releaseSuggestVersion: () => Promise.resolve({ success: true, data: '1.1.0' }),
 }
 
 // Setup function for tests

@@ -1,6 +1,6 @@
 import * as semver from 'semver'
-import { type GitCommit, GitService } from './GitService'
-import { TemplateService } from './TemplateService'
+import { type GitCommit, GitService } from './GitService.js'
+import { TemplateService } from './TemplateService.js'
 
 export interface ReleaseConfig {
   repoPath: string

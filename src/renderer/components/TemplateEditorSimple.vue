@@ -10,17 +10,17 @@
               <div class="flex space-x-2">
                 <Button 
                   @click="loadTemplate" 
-                  icon="pi pi-folder-open" 
+                  icon="pi pi-upload" 
                   size="small" 
                   outlined
-                  v-tooltip="'Cargar template'"
+                  v-tooltip="'Importar template'"
                 />
                 <Button 
                   @click="saveTemplate" 
-                  icon="pi pi-save" 
+                  icon="pi pi-download" 
                   size="small" 
                   outlined
-                  v-tooltip="'Guardar template'"
+                  v-tooltip="'Exportar template'"
                 />
               </div>
             </div>

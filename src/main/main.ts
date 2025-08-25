@@ -1,14 +1,15 @@
-import { readFile, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFile, writeFile } from 'fs/promises'
+import * as path from 'path'
+import { fileURLToPath } from 'url'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 
-// Importar servicios
-import { GitService } from './services/GitService.ts'
-import { TemplateService } from './services/TemplateService.ts'
-import { ReleaseService } from './services/ReleaseService.ts'
-import { DatabaseService } from './services/DatabaseService.ts'
+// Importar servicios TypeScript
+import { GitService } from './services/GitService.js'
+import { TemplateService } from './services/TemplateService.js'
+import { ReleaseService } from './services/ReleaseService.js'
+import { DatabaseService } from './services/DatabaseService.js'
 
+// Para ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -16,13 +17,13 @@ const __dirname = path.dirname(__filename)
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 // Referencias globales de ventanas
-let mainWindow
+let mainWindow: BrowserWindow | null = null
 
 // Instancias de servicios
-let gitService
-let templateService 
-let releaseService
-let databaseService
+let gitService: GitService | null = null
+let templateService: TemplateService | null = null
+let releaseService: ReleaseService | null = null
+let databaseService: DatabaseService | null = null
 
 function createWindow() {
   // Crear ventana principal del navegador
@@ -36,7 +37,6 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false,
       preload: path.join(__dirname, '../preload/preload.js'),
       // Opciones para WSL
       webSecurity: false,
@@ -57,8 +57,8 @@ function createWindow() {
   // Mostrar ventana cuando esté lista
   mainWindow.once('ready-to-show', () => {
     console.log('Window ready to show')
-    mainWindow.show()
-    mainWindow.focus()
+    mainWindow?.show()
+    mainWindow?.focus()
   })
 
   // Limpiar referencia cuando se cierre
@@ -103,6 +103,7 @@ app.on('window-all-closed', () => {
 
 // IPC Handlers para diálogos
 ipcMain.handle('open-folder-dialog', async () => {
+  if (!mainWindow) return { canceled: true, filePaths: [] }
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
     title: 'Seleccionar Repositorio Git',
@@ -111,6 +112,7 @@ ipcMain.handle('open-folder-dialog', async () => {
 })
 
 ipcMain.handle('open-file-dialog', async () => {
+  if (!mainWindow) return { canceled: true, filePaths: [] }
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile', 'multiSelections'],
     title: 'Seleccionar Archivos',
@@ -120,6 +122,7 @@ ipcMain.handle('open-file-dialog', async () => {
 
 // Handler avanzado para diálogo de abrir archivo con opciones
 ipcMain.handle('open-file-dialog-advanced', async (_event, options = {}) => {
+  if (!mainWindow) return { canceled: true, filePaths: [] }
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     title: options.title || 'Seleccionar Archivo',
@@ -131,6 +134,7 @@ ipcMain.handle('open-file-dialog-advanced', async (_event, options = {}) => {
 
 // Handler avanzado para diálogo de guardar archivo con opciones
 ipcMain.handle('save-file-dialog-advanced', async (_event, options = {}) => {
+  if (!mainWindow) return { canceled: true, filePath: '' }
   const result = await dialog.showSaveDialog(mainWindow, {
     title: options.title || 'Guardar Archivo',
     defaultPath: options.defaultPath || 'document.txt',
@@ -147,7 +151,7 @@ ipcMain.handle('read-file', async (_event, filePath) => {
     return { success: true, content }
   } catch (error) {
     console.error('Error reading file:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -158,7 +162,7 @@ ipcMain.handle('write-file', async (_event, filePath, content) => {
     return { success: true }
   } catch (error) {
     console.error('Error writing file:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -169,7 +173,7 @@ ipcMain.handle('show-in-explorer', async (_event, folderPath) => {
     return { success: true }
   } catch (error) {
     console.error('Error opening folder:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -180,7 +184,7 @@ ipcMain.handle('open-external', async (_event, url) => {
     return { success: true }
   } catch (error) {
     console.error('Error opening external URL:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -191,13 +195,19 @@ async function initializeServices() {
     gitService = new GitService()
     templateService = new TemplateService()
     
-    // Inicializar base de datos
-    const dbPath = isDev ? ':memory:' : path.join(__dirname, '../../data/releaseflow.db')
+    // Inicializar base de datos - usar archivo persistente también en desarrollo
+    const dbPath = isDev ? 'releaseflow-dev.db' : path.join(__dirname, '../../data/releaseflow.db')
     databaseService = new DatabaseService(dbPath)
-    await databaseService.initialize()
     
-    // Inicializar ReleaseService con dependencias
-    releaseService = new ReleaseService(gitService, templateService)
+    // Inicializar la base de datos
+    try {
+      databaseService.initialize()
+    } catch (error) {
+      console.warn('Warning: Could not initialize database:', error)
+    }
+    
+    // Inicializar ReleaseService sin dependencias
+    releaseService = new ReleaseService()
     
     console.log('Servicios inicializados correctamente')
     return true
@@ -217,7 +227,7 @@ ipcMain.handle('git-status', async (_event, repoPath) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-status:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -228,7 +238,7 @@ ipcMain.handle('git-validate-repository', async (_event, repoPath) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-validate-repository:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -239,7 +249,7 @@ ipcMain.handle('git-create-tag', async (_event, repoPath, tagName, message) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-create-tag:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -250,7 +260,7 @@ ipcMain.handle('git-get-tags', async (_event, repoPath, sortBySemver = true) => 
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-get-tags:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -261,7 +271,7 @@ ipcMain.handle('git-commit', async (_event, repoPath, message) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-commit:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -272,7 +282,7 @@ ipcMain.handle('git-get-current-branch', async (_event, repoPath) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-get-current-branch:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -283,7 +293,7 @@ ipcMain.handle('git-is-clean', async (_event, repoPath) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-is-clean:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -295,7 +305,7 @@ ipcMain.handle('template-render', async (_event, templateContent, data) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en template-render:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -306,7 +316,7 @@ ipcMain.handle('template-validate', async (_event, templateContent) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en template-validate:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -317,18 +327,18 @@ ipcMain.handle('template-preview', async (_event, templateContent, data) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en template-preview:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
-ipcMain.handle('template-save', async (_event, templateData) => {
+ipcMain.handle('template-save', async (_event, templateId, templateData) => {
   try {
     if (!templateService) throw new Error('TemplateService no inicializado')
-    const result = await templateService.saveTemplate(templateData)
+    const result = await templateService.saveTemplate(templateId, templateData)
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en template-save:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -339,7 +349,7 @@ ipcMain.handle('template-load', async (_event, templateId) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en template-load:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -348,10 +358,10 @@ ipcMain.handle('db-insert-repository', async (_event, repoData) => {
   try {
     if (!databaseService) throw new Error('DatabaseService no inicializado')
     const result = await databaseService.insertRepository(repoData)
-    return { success: true, data: result }
+    return result // El método ya devuelve la estructura correcta
   } catch (error) {
     console.error('Error en db-insert-repository:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -359,10 +369,10 @@ ipcMain.handle('db-list-repositories', async (_event, filters) => {
   try {
     if (!databaseService) throw new Error('DatabaseService no inicializado')
     const result = await databaseService.listRepositories(filters)
-    return { success: true, data: result }
+    return result // El método ya devuelve la estructura correcta
   } catch (error) {
     console.error('Error en db-list-repositories:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -373,7 +383,7 @@ ipcMain.handle('db-update-repository', async (_event, id, updates) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-update-repository:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -384,7 +394,7 @@ ipcMain.handle('db-delete-repository', async (_event, id) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-delete-repository:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -395,18 +405,31 @@ ipcMain.handle('db-save-template', async (_event, templateData) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-save-template:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
 ipcMain.handle('db-get-templates', async (_event, category) => {
   try {
     if (!databaseService) throw new Error('DatabaseService no inicializado')
+    console.log(`[IPC] db-get-templates called with category: ${category}`)
     const result = await databaseService.getTemplatesByCategory(category)
-    return { success: true, data: result }
+    console.log(`[IPC] db-get-templates result:`, result)
+    return result
   } catch (error) {
     console.error('Error en db-get-templates:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('db-delete-template', async (_event, id) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = await databaseService.deleteTemplate(id)
+    return result
+  } catch (error) {
+    console.error('Error en db-delete-template:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -417,7 +440,7 @@ ipcMain.handle('db-set-config', async (_event, key, value) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-set-config:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -428,30 +451,30 @@ ipcMain.handle('db-get-config', async (_event, key) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-get-config:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
 // Release Service Handlers
-ipcMain.handle('release-validate-prerequisites', async (_event, config) => {
+ipcMain.handle('release-validate-prerequisites', async (_event, repoPath, expectedBranch) => {
   try {
     if (!releaseService) throw new Error('ReleaseService no inicializado')
-    const result = await releaseService.validateReleasePrerequisites(config)
+    const result = await releaseService.validateReleasePrerequisites(repoPath, expectedBranch)
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en release-validate-prerequisites:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
-ipcMain.handle('release-generate-changelog', async (_event, config) => {
+ipcMain.handle('release-generate-changelog', async (_event, releaseData, template) => {
   try {
     if (!releaseService) throw new Error('ReleaseService no inicializado')
-    const result = await releaseService.generateChangelog(config)
+    const result = await releaseService.generateChangelog(releaseData, template)
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en release-generate-changelog:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -462,7 +485,7 @@ ipcMain.handle('release-create', async (_event, config) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en release-create:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -473,7 +496,7 @@ ipcMain.handle('release-get-history', async (_event, repoPath, limit) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en release-get-history:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
 
@@ -484,6 +507,6 @@ ipcMain.handle('release-suggest-version', async (_event, repoPath, currentVersio
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en release-suggest-version:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })

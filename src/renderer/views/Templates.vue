@@ -17,7 +17,13 @@
         <Button 
           @click="loadPredefinedTemplate" 
           icon="pi pi-file" 
-          label="Templates Predefinidos" 
+          label="Cargar Template" 
+          outlined
+        />
+        <Button 
+          @click="showNewTemplateDialog = true" 
+          icon="pi pi-save" 
+          label="Guardar" 
           outlined
         />
       </div>
@@ -69,49 +75,134 @@
       <Card class="text-center">
         <template #content>
           <div class="p-4">
-            <i class="pi pi-download text-3xl text-purple-500 mb-3"></i>
-            <h3 class="font-medium text-gray-900 dark:text-white mb-2">Exportar Template</h3>
+            <i class="pi pi-upload text-3xl text-purple-500 mb-3"></i>
+            <h3 class="font-medium text-gray-900 dark:text-white mb-2">Exportar/Importar</h3>
             <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Guarda y comparte tus templates personalizados
+              Guarda en archivo o carga templates desde archivo
             </p>
-            <Button 
-              label="Exportar" 
-              text 
-              size="small" 
-              @click="exportTemplate"
-            />
+            <div class="flex gap-2 justify-center">
+              <Button 
+                label="Exportar" 
+                icon="pi pi-download"
+                text 
+                size="small" 
+                @click="exportTemplate"
+              />
+              <Button 
+                label="Importar" 
+                icon="pi pi-upload"
+                text 
+                size="small" 
+                @click="importTemplate"
+              />
+            </div>
           </div>
         </template>
       </Card>
     </div>
 
-    <!-- Diálogo de Templates Predefinidos -->
+    <!-- Diálogo de Templates Guardados -->
     <Dialog 
       v-model:visible="showPredefinedDialog" 
       modal 
-      :header="'Seleccionar Template Predefinido'" 
+      :header="'Seleccionar Template'" 
       :style="{ width: '50rem' }" 
       :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
     >
       <div class="space-y-4">
-        <div v-for="template in predefinedTemplates" :key="template.name">
+        <div v-if="allTemplates.length === 0" class="text-center text-gray-500 dark:text-gray-400 py-8">
+          No hay templates guardados. Crea uno nuevo o importa desde archivo.
+        </div>
+        <div v-for="template in allTemplates" :key="template.id || template.name">
           <Card class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
                 @click="selectTemplate(template)">
             <template #content>
               <div class="p-4">
                 <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-semibold text-gray-900 dark:text-white">{{ template.name }}</h3>
-                  <Button 
-                    icon="pi pi-arrow-right" 
-                    size="small" 
-                    text 
-                    @click.stop="selectTemplate(template)"
-                  />
+                  <div class="flex items-center gap-2">
+                    <h3 class="font-semibold text-gray-900 dark:text-white">{{ template.name }}</h3>
+                    <span v-if="template.category === 'predefined'" 
+                          class="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                      Predefinido
+                    </span>
+                    <span v-else-if="template.category === 'custom'" 
+                          class="px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full">
+                      Personalizado
+                    </span>
+                  </div>
+                  <div class="flex gap-1">
+                    <Button 
+                      v-if="template.category === 'custom'" 
+                      icon="pi pi-trash" 
+                      size="small" 
+                      text 
+                      severity="danger"
+                      @click.stop="confirmDeleteTemplate(template)"
+                      v-tooltip="'Eliminar template'"
+                    />
+                    <Button 
+                      icon="pi pi-arrow-right" 
+                      size="small" 
+                      text 
+                      @click.stop="selectTemplate(template)"
+                      v-tooltip="'Usar template'"
+                    />
+                  </div>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">{{ template.description }}</p>
               </div>
             </template>
           </Card>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Diálogo para Guardar Template -->
+    <Dialog 
+      v-model:visible="showNewTemplateDialog" 
+      modal 
+      header="Guardar Template Personalizado" 
+      :style="{ width: '30rem' }" 
+      :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
+    >
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Nombre del Template
+          </label>
+          <input 
+            v-model="newTemplateName" 
+            type="text"
+            placeholder="Ej: Mi Template Personalizado" 
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white !important"
+            :disabled="false"
+            style="pointer-events: auto !important; user-select: text !important;"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Descripción (opcional)
+          </label>
+          <textarea 
+            v-model="newTemplateDescription" 
+            placeholder="Descripción del template..."
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none !important"
+            :disabled="false"
+            style="pointer-events: auto !important; user-select: text !important;"
+          />
+        </div>
+        <div class="flex justify-end space-x-3 pt-4">
+          <Button 
+            label="Cancelar" 
+            text 
+            @click="showNewTemplateDialog = false"
+          />
+          <Button 
+            label="Guardar" 
+            :disabled="!newTemplateName.trim()"
+            @click="saveCustomTemplate"
+          />
         </div>
       </div>
     </Dialog>
@@ -255,13 +346,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Dialog from 'primevue/dialog'
 // Usar editor simple por defecto para evitar problemas de memoria
 // Para Monaco Editor usar: '../components/TemplateEditorOptimized.vue'
 import TemplateEditor from '../components/TemplateEditorSimple.vue'
+import { useTemplatesStore } from '../store'
+
+// Store
+const templatesStore = useTemplatesStore()
 
 // Variables para mostrar la sintaxis de Liquid sin confundir a Vue
 const openBrace = '{{'
@@ -270,115 +365,23 @@ const closeBrace = '}}'
 // Ref al componente editor
 const templateEditorRef = ref(null)
 
+// Computed properties para obtener datos del store
+const templates = computed(() => templatesStore.templates)
+const predefinedTemplates = computed(() => templatesStore.predefinedTemplates)
+const isLoading = computed(() => templatesStore.loading)
+
+// Usar solo templates ya que loadTemplates() carga todos (predefined + custom)
+const allTemplates = computed(() => {
+  return templates.value
+})
+
 // Control de los diálogos
 const showPredefinedDialog = ref(false)
+const showNewTemplateDialog = ref(false)
+const newTemplateName = ref('')
+const newTemplateDescription = ref('')
 const showLiquidDocsDialog = ref(false)
 const showSampleDataDialog = ref(false)
-
-// Templates predefinidos
-const predefinedTemplates = [
-  {
-    name: 'Release Notes Estándar',
-    description: 'Template formal para release notes',
-    content: `# Release Notes v{{ version }}
-
-**Fecha de Lanzamiento:** {{ date | date: "%d de %B de %Y" }}
-**Tipo de Release:** {{ type }}
-
-## 🚀 Nuevas Características
-{% for commit in commits %}
-{% if commit.type == 'feat' %}
-- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
-
-## 🐛 Correcciones
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
-- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
-
-## 📝 Documentación
-{% for commit in commits %}
-{% if commit.type == 'docs' %}
-- {{ commit.subject }}
-{% endif %}
-{% endfor %}
-
----
-_Generado automáticamente por ReleaseFlow_`
-  },
-  {
-    name: 'Changelog Técnico',
-    description: 'Para desarrolladores y equipos técnicos',
-    content: `# CHANGELOG
-
-## [{{ version }}] - {{ date | date: "%Y-%m-%d" }}
-
-### Added
-{% for commit in commits %}{% if commit.type == 'feat' %}
-- {{ commit.subject }} ({{ commit.author }})
-{% endif %}{% endfor %}
-
-### Fixed
-{% for commit in commits %}{% if commit.type == 'fix' %}
-- [{{ commit.scope }}] {{ commit.subject }}
-{% endif %}{% endfor %}
-
-### Changed
-{% for commit in commits %}{% if commit.type == 'refactor' %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-### Performance
-{% for commit in commits %}{% if commit.type == 'perf' %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-Total commits: {{ commits | size }}`
-  },
-  {
-    name: 'Release Marketing',
-    description: 'Para comunicación con clientes',
-    content: `# 🎉 Nueva Versión {{ version }} Disponible!
-
-¡Nos complace anunciar el lanzamiento de la versión **{{ version }}** de nuestro producto!
-
-## ✨ Lo Nuevo
-
-{% for commit in commits %}
-{% if commit.type == 'feat' %}
-**{{ commit.subject }}**
-Mejoramos la experiencia para que puedas trabajar de manera más eficiente.
-
-{% endif %}
-{% endfor %}
-
-## 🔧 Mejoras y Correcciones
-
-Hemos solucionado varios problemas reportados por nuestros usuarios:
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
-- {{ commit.subject }}
-{% endif %}
-{% endfor %}
-
-## 📅 Fecha de Lanzamiento
-{{ date | date: "%d de %B de %Y" }}
-
-¡Gracias por tu continuo apoyo!`
-  },
-  {
-    name: 'Minimal',
-    description: 'Template minimalista y limpio',
-    content: `{{ version }} ({{ date | date: "%Y-%m-%d" }})
-
-{% for commit in commits %}
-- {{ commit.type }}: {{ commit.subject }}
-{% endfor %}`
-  }
-]
 
 // Datos de ejemplo para mostrar al usuario
 const previewData = {
@@ -454,6 +457,21 @@ const selectTemplate = (template) => {
   showPredefinedDialog.value = false
 }
 
+const confirmDeleteTemplate = async (template) => {
+  const confirmed = confirm(`¿Estás seguro de que quieres eliminar el template "${template.name}"?\n\nEsta acción no se puede deshacer.`)
+  
+  if (confirmed) {
+    try {
+      await templatesStore.deleteTemplate(template.id)
+      await templatesStore.loadTemplates() // Recargar la lista
+      alert(`✅ Template "${template.name}" eliminado exitosamente!`)
+    } catch (error) {
+      console.error('Error deleting template:', error)
+      alert(`❌ Error eliminando template: ${error.message}`)
+    }
+  }
+}
+
 const showLiquidDocs = () => {
   showLiquidDocsDialog.value = true
 }
@@ -503,4 +521,82 @@ const exportTemplate = async () => {
     alert(`❌ Error inesperado:\n${error.message}`)
   }
 }
+
+const saveCustomTemplate = async () => {
+  if (!templateEditorRef.value || !templateEditorRef.value.getEditorContent) {
+    alert('❌ No hay template para guardar')
+    return
+  }
+
+  try {
+    const content = templateEditorRef.value.getEditorContent()
+    
+    if (!content.trim()) {
+      alert('❌ El template está vacío')
+      return
+    }
+
+    const templateData = {
+      name: newTemplateName.value.trim(),
+      description: newTemplateDescription.value.trim() || '',
+      content: content,
+      category: 'custom'
+    }
+
+    await templatesStore.saveTemplate(templateData)
+    
+    // Recargar templates para mostrar el nuevo inmediatamente
+    await templatesStore.loadTemplates()
+    
+    // Cerrar diálogo y limpiar campos
+    showNewTemplateDialog.value = false
+    newTemplateName.value = ''
+    newTemplateDescription.value = ''
+    
+    alert(`✅ Template "${templateData.name}" guardado exitosamente!`)
+    
+  } catch (error) {
+    console.error('Error saving template:', error)
+    alert(`❌ Error guardando template: ${error.message}`)
+  }
+}
+
+const importTemplate = async () => {
+  try {
+    // Usar la API de Electron para abrir archivo
+    const dialogResult = await window.electronAPI?.openFileDialog?.({
+      title: 'Importar Template',
+      filters: [
+        { name: 'Templates Liquid', extensions: ['liquid'] },
+        { name: 'Markdown', extensions: ['md'] },
+        { name: 'Todos los archivos', extensions: ['*'] }
+      ]
+    })
+
+    if (dialogResult?.cancelled || !dialogResult?.filePaths?.length) {
+      return
+    }
+
+    const filePath = dialogResult.filePaths[0]
+    const content = await templatesStore.importTemplate(filePath)
+    
+    if (content && templateEditorRef.value && templateEditorRef.value.setEditorContent) {
+      templateEditorRef.value.setEditorContent(content)
+      alert('✅ Template importado exitosamente!')
+    } else {
+      alert('❌ No se pudo cargar el contenido del template')
+    }
+    
+  } catch (error) {
+    console.error('Error importing template:', error)
+    alert(`❌ Error importando template: ${error.message}`)
+  }
+}
+
+// Cargar datos cuando se monta el componente
+onMounted(async () => {
+  console.log('Loading templates...')
+  await templatesStore.loadTemplates() // Esto ya carga todos los templates
+  console.log('Templates loaded:', templatesStore.templates)
+})
 </script>

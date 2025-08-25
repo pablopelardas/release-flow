@@ -28,7 +28,7 @@ export const useRepositoriesStore = defineStore('repositories', {
       this.error = null
     },
 
-    async loadRepositories(filters = {}) {
+    async loadRepositories(filters = { active: 1 }) {
       this.setLoading(true)
       this.clearError()
       
@@ -37,6 +37,16 @@ export const useRepositoriesStore = defineStore('repositories', {
         
         if (response.success) {
           this.repositories = response.data.repositories || []
+          
+          // Actualizar estado Git para repositorios que no tienen información
+          for (const repo of this.repositories) {
+            if (repo.current_branch === null || repo.is_clean === null) {
+              // No esperar la respuesta para no bloquear la UI
+              this.refreshRepositoryStatus(repo.id).catch(error => {
+                console.warn(`Failed to refresh status for ${repo.name}:`, error)
+              })
+            }
+          }
         } else {
           throw new Error(response.error || 'Error loading repositories')
         }
@@ -76,9 +86,11 @@ export const useRepositoriesStore = defineStore('repositories', {
         const response = await window.electronAPI.dbInsertRepository(enrichedRepoData)
         
         if (response.success) {
-          // Añadir a la lista local
-          const newRepo = { ...enrichedRepoData, id: response.data.id }
-          this.repositories.push(newRepo)
+          // Recargar la lista completa desde la base de datos para asegurar consistencia
+          await this.loadRepositories()
+          
+          // Encontrar el repositorio recién agregado
+          const newRepo = this.repositories.find(repo => repo.id === response.data.id)
           return newRepo
         } else {
           throw new Error(response.error || 'Error adding repository')

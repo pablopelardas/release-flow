@@ -9,7 +9,7 @@
       </div>
       <button 
         @click="showAddDialog = true" 
-        class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 btn-add-repo"
+        class="bg-blue-600 hover:bg-blue-700 text-white dark:text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
       >
         <span>Agregar Repositorio</span>
       </button>
@@ -22,7 +22,7 @@
           <div class="flex items-center space-x-3">
             <div>
               <h3 class="font-semibold text-gray-900 dark:text-white">{{ repo.name }}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400">{{ repo.path }}</p>
+              <p class="text-sm text-gray-500">{{ repo.path }}</p>
             </div>
           </div>
         </div>
@@ -30,13 +30,13 @@
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-sm text-gray-600 dark:text-gray-400">Rama actual:</span>
-            <span class="text-sm text-gray-900 dark:text-white">{{ repo.current_branch || 'No disponible' }}</span>
+            <span class="text-sm text-gray-900 dark:text-white">{{ repo.current_branch }}</span>
           </div>
           
           <div class="flex items-center justify-between">
             <span class="text-sm text-gray-600 dark:text-gray-400">Estado:</span>
-            <span class="text-sm" :class="repo.is_clean === null || repo.is_clean === undefined ? 'text-gray-500 dark:text-gray-400' : (repo.is_clean ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400')">
-              {{ repo.is_clean === null || repo.is_clean === undefined ? 'No disponible' : (repo.is_clean ? 'Limpio' : 'Con cambios') }}
+            <span class="text-sm" :class="repo.is_clean ? 'text-green-600' : 'text-yellow-600'">
+              {{ repo.is_clean ? 'Limpio' : 'Con cambios' }}
             </span>
           </div>
         </div>
@@ -71,7 +71,7 @@
       <p class="text-gray-600 dark:text-gray-300 mb-4">Comienza agregando tu primer repositorio Git</p>
       <button 
         @click="showAddDialog = true" 
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors btn-add-repo"
+        class="bg-blue-600 hover:bg-blue-700 text-white dark:text-white px-4 py-2 rounded-lg transition-colors"
       >
         Agregar Repositorio
       </button>
@@ -123,7 +123,7 @@
           <button 
             @click="addRepository" 
             :disabled="!newRepoPath" 
-            class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 px-4 py-2 rounded transition-colors btn-add-repo"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors"
           >
             Agregar
           </button>
@@ -220,17 +220,5 @@ onMounted(async () => {
 
 .repository-card:hover {
   transform: translateY(-2px);
-}
-
-.btn-add-repo {
-  color: white !important;
-}
-
-.btn-add-repo:hover {
-  color: white !important;
-}
-
-.btn-add-repo:disabled {
-  color: white !important;
 }
 </style>

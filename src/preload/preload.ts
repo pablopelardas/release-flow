@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dbDeleteRepository: (id) => ipcRenderer.invoke('db-delete-repository', id),
   dbSaveTemplate: (templateData) => ipcRenderer.invoke('db-save-template', templateData),
   dbGetTemplates: (category) => ipcRenderer.invoke('db-get-templates', category),
+  dbDeleteTemplate: (id) => ipcRenderer.invoke('db-delete-template', id),
   dbSetConfig: (key, value) => ipcRenderer.invoke('db-set-config', key, value),
   dbGetConfig: (key) => ipcRenderer.invoke('db-get-config', key),
 
