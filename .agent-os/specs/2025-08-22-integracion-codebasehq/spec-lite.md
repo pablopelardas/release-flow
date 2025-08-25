@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Implementar integración con API de CodebaseHQ para crear deployments automáticos usando configuración predefinida por aplicación (environment, branch, servers) y generar changelogs entre versiones. Cada tag creado registrará un deployment en CodebaseHQ con el SHA del commit como revision dinámica, mientras se archivan los changelogs en formato JSON/Markdown para futura integración con Jira.

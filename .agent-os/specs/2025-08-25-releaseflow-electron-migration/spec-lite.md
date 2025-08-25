@@ -1,0 +1,3 @@
+# Spec Summary (Lite)
+
+Migrar ReleaseFlow Desktop de WPF a Electron con Vue 3 para habilitar desarrollo multiplataforma real, mejorar la experiencia de desarrollo con hot-reload y crear una UI más moderna y fluida. La migración mantendrá toda la funcionalidad existente de gestión de releases, templates y operaciones Git, mientras reduce la complejidad técnica y permite ejecutar la aplicación en Windows, macOS y Linux con una única base de código JavaScript/TypeScript.
