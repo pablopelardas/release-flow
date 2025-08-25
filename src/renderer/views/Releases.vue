@@ -868,13 +868,8 @@ const generateRelease = async () => {
     if (saveToFile.value) {
       console.log('📁 Guardando archivo de release...')
       
-      // Preparar contenido del archivo (sin HTML, solo Markdown limpio)
-      const fileContent = generatedPreview.value
-        .replace(/<[^>]*>/g, '') // Remover tags HTML
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
+      // Convertir HTML de vuelta a Markdown apropiado
+      const fileContent = convertHtmlToMarkdown(generatedPreview.value)
       
       const saveResponse = await window.electronAPI.saveFileDialog({
         title: 'Guardar Release Notes',
@@ -921,12 +916,136 @@ const showReleaseHistory = () => {
   console.log('Show release history')
 }
 
-const viewRelease = (release) => {
-  console.log('View release:', release)
+// Función para arreglar texto suelto sin clases de dark mode
+const fixLooseText = (htmlContent) => {
+  // Envolver texto que aparece después de tags de cierre y texto suelto en líneas
+  let fixed = htmlContent
+  
+  // Capturar texto que aparece después de tags de cierre como </strong> texto
+  fixed = fixed.replace(/(<\/[^>]+>)\s*([^<\n]+?)(?=\s*<|$)/g, '$1 <span class="text-gray-900 dark:text-white">$2</span>')
+  
+  // Capturar líneas que son solo texto sin tags
+  fixed = fixed.replace(/^(?!<)([^<\n]+)$/gm, '<span class="text-gray-900 dark:text-white">$1</span>')
+  
+  return fixed
 }
 
-const downloadRelease = (release) => {
-  console.log('Download release:', release)
+const viewRelease = (release) => {
+  // Mostrar modal o popup con el contenido de la release
+  const releaseContent = fixLooseText(release.content || 'Sin contenido disponible')
+  
+  // Hacer la release actual disponible globalmente para el botón de descarga
+  window.currentRelease = release
+  
+  // Crear un modal simple con el contenido
+  const modal = document.createElement('div')
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'
+  
+  // Asegurar que el modal herede el tema actual
+  if (document.documentElement.classList.contains('dark')) {
+    modal.classList.add('dark')
+  }
+  
+  const closeModal = () => {
+    modal.remove()
+    window.currentRelease = null
+    document.removeEventListener('keydown', handleEscape)
+  }
+  
+  const downloadCurrent = () => {
+    downloadRelease(window.currentRelease)
+  }
+  
+  modal.innerHTML = `
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-auto">
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+            ${release.version} - ${release.repository}
+          </h2>
+          <button id="closeBtn" class="text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 text-2xl">&times;</button>
+        </div>
+        <p class="text-sm mt-1">
+          <span class="text-gray-500 dark:text-gray-400">${new Date(release.date).toLocaleDateString('es-ES')}</span>
+          <span class="text-gray-500 dark:text-gray-400"> • </span>
+          <span class="text-gray-500 dark:text-gray-400">${release.template}</span>
+        </p>
+      </div>
+      <div class="p-6 prose prose-sm dark:prose-invert max-w-none">
+        ${releaseContent}
+      </div>
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+        <button id="closeBtnFooter" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+          Cerrar
+        </button>
+        <button id="downloadBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg" style="color: white !important;">
+          Descargar
+        </button>
+      </div>
+    </div>
+  `
+  
+  document.body.appendChild(modal)
+  
+  // Event listeners
+  modal.querySelector('#closeBtn').addEventListener('click', closeModal)
+  modal.querySelector('#closeBtnFooter').addEventListener('click', closeModal)
+  modal.querySelector('#downloadBtn').addEventListener('click', downloadCurrent)
+  
+  // Cerrar con escape
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeModal()
+    }
+  }
+  document.addEventListener('keydown', handleEscape)
+  
+  // Cerrar al hacer click fuera
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeModal()
+    }
+  })
+}
+
+const downloadRelease = async (release) => {
+  try {
+    console.log('📁 Descargando release:', release.version)
+    
+    // Convertir HTML a Markdown si es necesario
+    const fileContent = release.content.includes('<') ? 
+      convertHtmlToMarkdown(release.content) : 
+      release.content
+    
+    const saveResponse = await window.electronAPI.saveFileDialog({
+      title: 'Descargar Release Notes',
+      defaultPath: `release-${release.version}.md`,
+      filters: [
+        { name: 'Markdown Files', extensions: ['md'] },
+        { name: 'Text Files', extensions: ['txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    
+    if (saveResponse && !saveResponse.canceled && saveResponse.filePath) {
+      console.log('📝 Escribiendo archivo a:', saveResponse.filePath)
+      const writeResponse = await window.electronAPI.writeFile(saveResponse.filePath, fileContent)
+      if (writeResponse.success) {
+        console.log('✅ Release descargado exitosamente:', saveResponse.filePath)
+        alert(`✅ Release descargado en:\n${saveResponse.filePath}`)
+      } else {
+        console.error('❌ Error escribiendo archivo:', writeResponse.error)
+        alert(`❌ Error escribiendo archivo: ${writeResponse.error}`)
+      }
+    } else if (saveResponse && saveResponse.canceled) {
+      console.log('ℹ️ Usuario canceló la descarga')
+    } else {
+      console.error('❌ Error en dialog de guardado:', saveResponse)
+    }
+  } catch (error) {
+    console.error('❌ Error descargando release:', error)
+    alert(`❌ Error descargando release: ${error.message}`)
+  }
 }
 
 const loadSecondaryReposInfo = async () => {
@@ -948,6 +1067,56 @@ const loadSecondaryReposInfo = async () => {
     secondaryReposInfo.value = ''
   }
 }
+
+const convertHtmlToMarkdown = (htmlContent) => {
+  // Función para convertir HTML generado de vuelta a Markdown limpio
+  let markdown = htmlContent
+  
+  // Remover el div wrapper
+  markdown = markdown.replace(/<div class="space-y-4">([\s\S]*?)<\/div>$/, '$1')
+  
+  // Convertir headers
+  markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/g, '# $1')
+  markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/g, '## $1')
+  markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/g, '### $1')
+  
+  // Convertir strong/bold
+  markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**')
+  
+  // Convertir em/italic
+  markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*')
+  
+  // Convertir listas
+  markdown = markdown.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/g, (match, content) => {
+    const items = content.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1').trim()
+    return items + '\n'
+  })
+  
+  // Convertir párrafos 
+  markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/g, '$1\n')
+  
+  // Convertir horizontal rules
+  markdown = markdown.replace(/<hr[^>]*\/?>/g, '---')
+  
+  // Limpiar break lines
+  markdown = markdown.replace(/<br\s*\/?>/g, '\n')
+  
+  // Decodificar entidades HTML
+  markdown = markdown.replace(/&nbsp;/g, ' ')
+  markdown = markdown.replace(/&amp;/g, '&')
+  markdown = markdown.replace(/&lt;/g, '<')
+  markdown = markdown.replace(/&gt;/g, '>')
+  markdown = markdown.replace(/&quot;/g, '"')
+  
+  // Remover cualquier HTML restante
+  markdown = markdown.replace(/<[^>]*>/g, '')
+  
+  // Limpiar espacios extra y líneas vacías múltiples
+  markdown = markdown.replace(/\n\s*\n\s*\n/g, '\n\n').trim()
+  
+  return markdown
+}
+
 
 onMounted(async () => {
   // Cargar datos reales de los stores
