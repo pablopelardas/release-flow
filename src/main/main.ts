@@ -617,3 +617,32 @@ ipcMain.handle('release-suggest-version', async (_event, repoPath, currentVersio
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
+
+// Manejadores IPC para changelog unificado
+ipcMain.handle('release-collect-multi-repository-data', async (_event, mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion) => {
+  try {
+    if (!releaseService) throw new Error('ReleaseService no inicializado')
+    const result = await releaseService.collectMultiRepositoryData(
+      mainRepoId,
+      mainRepoName,
+      mainRepoPath,
+      secondaryRepositories,
+      targetVersion
+    )
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en release-collect-multi-repository-data:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('release-generate-unified-changelog', async (_event, unifiedData, templateOrId) => {
+  try {
+    if (!releaseService) throw new Error('ReleaseService no inicializado')
+    const result = await releaseService.generateUnifiedChangelog(unifiedData, templateOrId)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en release-generate-unified-changelog:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})

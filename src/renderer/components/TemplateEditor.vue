@@ -86,27 +86,55 @@ const DEFAULT_TEMPLATE = `# Release Notes v{{ version }}
 **Fecha:** {{ date | date: "%B %d, %Y" }}
 **Tipo:** {{ type }}
 
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_docs = false %}
+{% assign has_chore = false %}
+{% assign has_other = false %}
+
+{% for commit in commits %}
+  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
+  {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign has_other = true %}{% endunless %}
+{% endfor %}
+
+{% if has_feat %}
 ## 🚀 Nuevas Características
-{% for commit in commits %}
-{% if commit.type == 'feat' %}
+{% for commit in commits %}{% if commit.type == "feat" %}
 - {{ commit.subject }} ({{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_fix %}
 ## 🐛 Correcciones
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
+{% for commit in commits %}{% if commit.type == "fix" %}
 - {{ commit.subject }} ({{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_docs %}
 ## 📝 Documentación
-{% for commit in commits %}
-{% if commit.type == 'docs' %}
+{% for commit in commits %}{% if commit.type == "docs" %}
 - {{ commit.subject }} ({{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_chore %}
+## 🔧 Mantenimiento
+{% for commit in commits %}{% if commit.type == "chore" %}
+- {{ commit.subject }} ({{ commit.hash | slice: 0, 7 }})
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_other %}
+## 📝 Otros Cambios
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}
+- {{ commit.subject }} ({{ commit.hash | slice: 0, 7 }})
+{% endunless %}{% endfor %}
+
+{% endif %}
 ---
 **Commits incluidos:** {{ commits | size }}
 **Generado automáticamente por ReleaseFlow**`
@@ -330,27 +358,46 @@ const loadTemplate = async () => {
 **Release Date:** {{ date | date: "%Y-%m-%d" }}
 **Release Type:** {{ type }}
 
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_perf = false %}
+{% assign has_other = false %}
+
+{% for commit in commits %}
+  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "perf" %}{% assign has_perf = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "perf" %}{% assign has_other = true %}{% endunless %}
+{% endfor %}
+
+{% if has_feat %}
 ## ✨ What's New
-{% for commit in commits %}
-{% if commit.type == 'feat' %}
+{% for commit in commits %}{% if commit.type == "feat" %}
 - {{ commit.subject }} by {{ commit.author }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_fix %}
 ## 🐛 Bug Fixes
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
+{% for commit in commits %}{% if commit.type == "fix" %}
 - {{ commit.subject }} ({{ commit.scope }})
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
-## Performance Improvements
-{% for commit in commits %}
-{% if commit.type == 'perf' %}
+{% endif %}
+{% if has_perf %}
+## ⚡ Performance Improvements
+{% for commit in commits %}{% if commit.type == "perf" %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_other %}
+## 📝 Other Changes
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "perf" %}
+- {{ commit.subject }}
+{% endunless %}{% endfor %}
+
+{% endif %}
 ---
 Generated automatically by ReleaseFlow from {{ commits | size }} commits.`
 

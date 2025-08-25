@@ -102,6 +102,20 @@ export class TemplateService {
       if (count === 1) return singular
       return plural || `${singular}s`
     })
+
+    // Filtro para detectar el tipo de commit si no está explícito
+    this.liquid.registerFilter('detectType', (message: string) => {
+      if (!message) return 'other'
+      const lowerMessage = message.toLowerCase()
+      
+      if (lowerMessage.startsWith('feat:') || lowerMessage.includes('feature:')) return 'feat'
+      if (lowerMessage.startsWith('fix:') || lowerMessage.includes('bugfix:')) return 'fix'
+      if (lowerMessage.startsWith('docs:') || lowerMessage.includes('doc:')) return 'docs'
+      if (lowerMessage.startsWith('chore:') || lowerMessage.startsWith('build:') || 
+          lowerMessage.startsWith('ci:') || lowerMessage.startsWith('test:')) return 'chore'
+      
+      return 'other'
+    })
   }
 
   /**
@@ -287,6 +301,7 @@ export class TemplateService {
     if (name.includes('count') || name.includes('length')) return 5
     if (name.includes('url')) return 'https://ejemplo.com'
     if (name.includes('email')) return 'ejemplo@correo.com'
+    
 
     return 'Valor de ejemplo'
   }
@@ -303,17 +318,50 @@ export class TemplateService {
 
 ## [{{ version }}] - {{ date | formatDate }}
 
-### Añadido
-{% for commit in commits %}{% if commit.type == 'feat' %}- {{ commit.message }}
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_docs = false %}
+{% assign has_chore = false %}
+{% assign has_other = false %}
+
+{% for commit in commits %}
+  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
+  {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign has_other = true %}{% endunless %}
+{% endfor %}
+
+{% if has_feat %}
+### 🚀 Nuevas Características
+{% for commit in commits %}{% if commit.type == "feat" %}- {{ commit.message }}
 {% endif %}{% endfor %}
 
-### Corregido
-{% for commit in commits %}{% if commit.type == 'fix' %}- {{ commit.message }}
+{% endif %}
+{% if has_fix %}
+### 🐛 Correcciones
+{% for commit in commits %}{% if commit.type == "fix" %}- {{ commit.message }}
 {% endif %}{% endfor %}
 
-### Cambiado
-{% for commit in commits %}{% if commit.type == 'change' %}- {{ commit.message }}
-{% endif %}{% endfor %}`,
+{% endif %}
+{% if has_docs %}
+### 📚 Documentación
+{% for commit in commits %}{% if commit.type == "docs" %}- {{ commit.message }}
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_chore %}
+### 🔧 Mantenimiento
+{% for commit in commits %}{% if commit.type == "chore" %}- {{ commit.message }}
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_other %}
+### 📝 Otros Cambios
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}- {{ commit.message }}
+{% endunless %}{% endfor %}
+
+{% endif %}`,
         variables: ['version', 'date', 'commits'],
         category: 'release',
       },
@@ -321,7 +369,7 @@ export class TemplateService {
       'release-notes': {
         name: 'Release Notes',
         description: 'Template para notas de release completas',
-        template: `# {{ project.name }} v{{ version }}
+        template: `# {{ repository }} v{{ version }}
 
 **Fecha de Release:** {{ date | formatDate }}
 **Autor:** {{ author }}
@@ -332,19 +380,66 @@ export class TemplateService {
 
 ## Cambios ({{ commits.length }} {{ commits.length | pluralize: "commit", "commits" }})
 
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_docs = false %}
+{% assign has_chore = false %}
+{% assign has_other = false %}
+
 {% for commit in commits %}
-- **{{ commit.type | capitalize }}:** {{ commit.message }} ({{ commit.hash | truncate: 7, "" }})
+  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
+  {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign has_other = true %}{% endunless %}
 {% endfor %}
 
+{% if has_feat %}
+### 🚀 Nuevas Características
+{% for commit in commits %}{% if commit.type == "feat" %}
+- {{ commit.message }} ({{ commit.hash | truncate: 7, "" }})
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_fix %}
+### 🐛 Correcciones
+{% for commit in commits %}{% if commit.type == "fix" %}
+- {{ commit.message }} ({{ commit.hash | truncate: 7, "" }})
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_docs %}
+### 📚 Documentación
+{% for commit in commits %}{% if commit.type == "docs" %}
+- {{ commit.message }} ({{ commit.hash | truncate: 7, "" }})
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_chore %}
+### 🔧 Mantenimiento
+{% for commit in commits %}{% if commit.type == "chore" %}
+- {{ commit.message }} ({{ commit.hash | truncate: 7, "" }})
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_other %}
+### 📝 Otros Cambios
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}
+- {{ commit.message }} ({{ commit.hash | truncate: 7, "" }})
+{% endunless %}{% endfor %}
+
+{% endif %}
+{% if repository %}
 ## Instalación
 
 \`\`\`bash
-npm install {{ project.name }}@{{ version }}
+npm install {{ repository }}@{{ version }}
 \`\`\`
+{% endif %}
 
 ---
 Generado automáticamente por ReleaseFlow`,
-        variables: ['project.name', 'version', 'date', 'author', 'summary', 'commits'],
+        variables: ['repository', 'version', 'date', 'author', 'summary', 'commits'],
         category: 'release',
       },
 
@@ -366,34 +461,48 @@ Generado automáticamente por ReleaseFlow`,
       'commit-summary': {
         name: 'Resumen de Commits',
         description: 'Resumen de commits entre versiones',
-        template: `## Commits desde {{ from_version }} hasta {{ to_version }}
+        template: `## Commits desde {{ from_version | default: "inicio" }} hasta {{ to_version | default: version }}
 
 **Total:** {{ commits.length }} {{ commits.length | pluralize: "commit", "commits" }}
-**Período:** {{ start_date | formatDate }} - {{ end_date | formatDate }}
+{% if start_date %}**Período:** {{ start_date | formatDate }} - {{ end_date | formatDate }}{% endif %}
+
+{% assign feat_count = 0 %}
+{% assign fix_count = 0 %}
+{% assign docs_count = 0 %}
+{% assign chore_count = 0 %}
+{% assign other_count = 0 %}
+
+{% for commit in commits %}
+  {% if commit.type == "feat" %}{% assign feat_count = feat_count | plus: 1 %}{% endif %}
+  {% if commit.type == "fix" %}{% assign fix_count = fix_count | plus: 1 %}{% endif %}
+  {% if commit.type == "docs" %}{% assign docs_count = docs_count | plus: 1 %}{% endif %}
+  {% if commit.type == "chore" %}{% assign chore_count = chore_count | plus: 1 %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign other_count = other_count | plus: 1 %}{% endunless %}
+{% endfor %}
 
 ### Por tipo:
-- Features: {{ feat_count | default: 0 }}
-- Fixes: {{ fix_count | default: 0 }}
-- Refactor: {{ refactor_count | default: 0 }}
-- Documentación: {{ docs_count | default: 0 }}
+{% if feat_count > 0 %}- 🚀 Nuevas Características: {{ feat_count }}
+{% endif %}{% if fix_count > 0 %}- 🐛 Correcciones: {{ fix_count }}
+{% endif %}{% if docs_count > 0 %}- 📚 Documentación: {{ docs_count }}
+{% endif %}{% if chore_count > 0 %}- 🔧 Mantenimiento: {{ chore_count }}
+{% endif %}{% if other_count > 0 %}- 📝 Otros: {{ other_count }}
+{% endif %}
 
 ### Lista completa:
 {% for commit in commits %}
-{{ forloop.index }}. {{ commit.message }} - *{{ commit.author }}* ({{ commit.date | formatDate }})
+{{ forloop.index }}. **{{ commit.type | default: "other" | capitalize }}:** {{ commit.message }}{% if commit.author %} - *{{ commit.author }}*{% endif %}{% if commit.date %} ({{ commit.date | formatDate }}){% endif %}
 {% endfor %}`,
         variables: [
           'from_version',
-          'to_version',
+          'to_version', 
+          'version',
           'commits',
           'start_date',
-          'end_date',
-          'feat_count',
-          'fix_count',
-          'refactor_count',
-          'docs_count',
+          'end_date'
         ],
         category: 'analysis',
       },
+
     }
   }
 

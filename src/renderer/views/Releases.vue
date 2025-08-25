@@ -698,71 +698,35 @@ const generatePreview = async () => {
   try {
     console.log('Generating preview for repository:', selectedRepository.value.path)
     
-    // Obtener commits específicos para el tipo de release seleccionado
-    const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
-      selectedRepository.value.path,
-      currentVersion.value,
-      versionType.value
-    )
-    console.log('Git commits response:', commitsResponse)
+    let templateData
+    let renderResponse
     
-    if (!commitsResponse.success) {
-      throw new Error(commitsResponse.error || 'Error obteniendo commits')
+    // Check if this is a main repository with secondary repositories
+    if (selectedRepository.value.is_main_repository) {
+      console.log('🔗 Checking for secondary repositories...')
+      
+      // Get secondary repositories
+      const secondaryResponse = await window.electronAPI.dbGetSecondaryRepositories(selectedRepository.value.id)
+      
+      if (secondaryResponse.success && secondaryResponse.data.repositories.length > 0) {
+        console.log(`📦 Found ${secondaryResponse.data.repositories.length} secondary repositories - generating unified changelog`)
+        
+        // Generate unified changelog using the selected template for all repositories
+        renderResponse = await generateUnifiedChangelogWithTemplate(secondaryResponse.data.repositories)
+        
+      } else {
+        console.log('ℹ️ No secondary repositories found, falling back to single repository mode')
+        // Fall back to single repository mode
+        return await generateSingleRepositoryPreview()
+      }
+    } else {
+      // Single repository mode
+      return await generateSingleRepositoryPreview()
     }
-    
-    // Preparar datos reales para el template
-    const templateData = {
-      version: getFinalVersion(),
-      date: new Date(),
-      type: versionType.value,
-      repository: selectedRepository.value.name,
-      commits: commitsResponse.data.commits || [],
-      fromTag: commitsResponse.data.fromTag || 'inicio',
-      toTag: commitsResponse.data.toTag || 'HEAD',
-      commitsCount: commitsResponse.data.commits?.length || 0,
-      baseVersion: currentVersion.value,
-      releaseType: versionType.value,
-      author: 'Usuario' // Se puede obtener de Git config si está disponible
-    }
-    
-    console.log('Template data:', templateData)
-    
-    // Usar el servicio de templates para renderizar con Liquid.js
-    const renderResponse = await templatesStore.renderTemplate(selectedTemplate.value.content, templateData)
-    console.log('Template render response:', renderResponse)
     
     if (renderResponse) {
-      // Convertir Markdown básico a HTML de manera más inteligente
-      let htmlOutput = renderResponse
-        // Headers
-        .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">$1</h1>')
-        .replace(/^## (.+)$/gm, '<h2 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">$1</h2>')
-        .replace(/^### (.+)$/gm, '<h3 class="text-lg font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
-        // Bold text
-        .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
-        // List items - envolver en <ul>
-        .replace(/(^- .+$\n?)+/gm, (match) => {
-          const items = match.trim().split('\n').map(line => 
-            line.replace(/^- (.+)$/, '<li class="mb-1 text-gray-700 dark:text-gray-300">$1</li>')
-          ).join('\n')
-          return `<ul class="list-none space-y-1 mb-4">\n${items}\n</ul>`
-        })
-        // Horizontal rule
-        .replace(/^---$/gm, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
-        // Italic text
-        .replace(/\*([^*]+)\*/g, '<em class="italic text-gray-600 dark:text-gray-400">$1</em>')
-        // Párrafos - convertir saltos dobles en párrafos
-        .split('\n\n')
-        .filter(paragraph => paragraph.trim())
-        .map(paragraph => {
-          // Si ya es HTML (contiene tags), no envolver
-          if (paragraph.includes('<')) return paragraph
-          // Si es texto plano, envolver en párrafo
-          return `<p class="mb-4 text-gray-700 dark:text-gray-300">${paragraph.replace(/\n/g, '<br>')}</p>`
-        })
-        .join('\n')
-      
-      generatedPreview.value = `<div class="space-y-4">${htmlOutput}</div>`
+      // Convert Markdown to HTML
+      generatedPreview.value = `<div class="space-y-4">${convertMarkdownToHtml(renderResponse)}</div>`
     } else {
       generatedPreview.value = 'Error generando preview'
     }
@@ -771,6 +735,195 @@ const generatePreview = async () => {
     console.error('Error generating preview:', error)
     generatedPreview.value = `<div class="text-red-600">Error generando preview: ${error.message}</div>`
   }
+}
+
+const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
+  try {
+    console.log('🔄 Generating unified changelog with template:', selectedTemplate.value.name)
+    
+    // Generate changelog for main repository
+    const mainCommitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+      selectedRepository.value.path,
+      currentVersion.value,
+      versionType.value
+    )
+    
+    if (!mainCommitsResponse.success) {
+      throw new Error(`Error obteniendo commits del repositorio principal: ${mainCommitsResponse.error}`)
+    }
+    
+    const mainTemplateData = {
+      version: getFinalVersion(),
+      date: new Date(),
+      type: versionType.value,
+      repository: selectedRepository.value.name,
+      commits: mainCommitsResponse.data.commits || [],
+      fromTag: mainCommitsResponse.data.fromTag || 'inicio',
+      toTag: mainCommitsResponse.data.toTag || 'HEAD',
+      commitsCount: mainCommitsResponse.data.commits?.length || 0,
+      baseVersion: currentVersion.value,
+      releaseType: versionType.value,
+      author: 'Usuario'
+    }
+    
+    // Render main repository changelog
+    const mainChangelogResponse = await templatesStore.renderTemplate(selectedTemplate.value.content, mainTemplateData)
+    
+    if (!mainChangelogResponse) {
+      throw new Error('Error generando changelog del repositorio principal')
+    }
+    
+    // Start unified changelog with main repository
+    let unifiedChangelog = `# ${selectedRepository.value.name} - Release ${getFinalVersion()}\n\n`
+    unifiedChangelog += `**Fecha:** ${new Date().toLocaleDateString()}\n\n`
+    unifiedChangelog += `---\n\n`
+    unifiedChangelog += `## 📁 Repositorio Principal: ${selectedRepository.value.name}\n\n`
+    unifiedChangelog += mainChangelogResponse + '\n\n'
+    
+    // Generate changelog for each secondary repository
+    for (const secondaryRepo of secondaryRepositories) {
+      try {
+        console.log(`📦 Generating changelog for secondary repository: ${secondaryRepo.name}`)
+        
+        // Get commits for this secondary repository
+        const secondaryCommitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+          secondaryRepo.path,
+          currentVersion.value, // Using same version logic
+          versionType.value
+        )
+        
+        if (secondaryCommitsResponse.success) {
+          const secondaryTemplateData = {
+            version: getFinalVersion(),
+            date: new Date(),
+            type: versionType.value,
+            repository: secondaryRepo.name,
+            commits: secondaryCommitsResponse.data.commits || [],
+            fromTag: secondaryCommitsResponse.data.fromTag || 'inicio',
+            toTag: secondaryCommitsResponse.data.toTag || 'HEAD',
+            commitsCount: secondaryCommitsResponse.data.commits?.length || 0,
+            baseVersion: currentVersion.value,
+            releaseType: versionType.value,
+            author: 'Usuario'
+          }
+          
+          // Render secondary repository changelog using the same template
+          const secondaryChangelogResponse = await templatesStore.renderTemplate(selectedTemplate.value.content, secondaryTemplateData)
+          
+          if (secondaryChangelogResponse) {
+            unifiedChangelog += `---\n\n`
+            unifiedChangelog += `## 📦 Repositorio Secundario: ${secondaryRepo.name}\n\n`
+            unifiedChangelog += secondaryChangelogResponse + '\n\n'
+            console.log(`✅ Successfully generated changelog for ${secondaryRepo.name}`)
+          } else {
+            console.warn(`⚠️ Failed to generate changelog for ${secondaryRepo.name}`)
+            unifiedChangelog += `---\n\n`
+            unifiedChangelog += `## 📦 Repositorio Secundario: ${secondaryRepo.name}\n\n`
+            unifiedChangelog += `*No se pudieron obtener cambios para este repositorio*\n\n`
+          }
+        } else {
+          console.warn(`⚠️ Failed to get commits for ${secondaryRepo.name}:`, secondaryCommitsResponse.error)
+          unifiedChangelog += `---\n\n`
+          unifiedChangelog += `## 📦 Repositorio Secundario: ${secondaryRepo.name}\n\n`
+          unifiedChangelog += `*No se pudieron obtener commits para este repositorio*\n\n`
+        }
+      } catch (error) {
+        console.error(`❌ Error processing secondary repository ${secondaryRepo.name}:`, error)
+        unifiedChangelog += `---\n\n`
+        unifiedChangelog += `## 📦 Repositorio Secundario: ${secondaryRepo.name}\n\n`
+        unifiedChangelog += `*Error procesando este repositorio: ${error.message}*\n\n`
+      }
+    }
+    
+    // Add summary footer
+    unifiedChangelog += `---\n\n`
+    unifiedChangelog += `## 📊 Resumen\n\n`
+    unifiedChangelog += `- **Repositorio Principal:** ${selectedRepository.value.name}\n`
+    secondaryRepositories.forEach(repo => {
+      unifiedChangelog += `- **Repositorio Secundario:** ${repo.name}\n`
+    })
+    unifiedChangelog += `\n*Changelog generado automáticamente por ReleaseFlow*`
+    
+    console.log('✅ Unified changelog generated successfully')
+    return unifiedChangelog
+    
+  } catch (error) {
+    console.error('❌ Error generating unified changelog:', error)
+    throw error
+  }
+}
+
+const generateSingleRepositoryPreview = async () => {
+  // Obtener commits específicos para el tipo de release seleccionado
+  const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+    selectedRepository.value.path,
+    currentVersion.value,
+    versionType.value
+  )
+  console.log('Git commits response:', commitsResponse)
+  
+  if (!commitsResponse.success) {
+    throw new Error(commitsResponse.error || 'Error obteniendo commits')
+  }
+  
+  // Preparar datos reales para el template
+  const templateData = {
+    version: getFinalVersion(),
+    date: new Date(),
+    type: versionType.value,
+    repository: selectedRepository.value.name,
+    commits: commitsResponse.data.commits || [],
+    fromTag: commitsResponse.data.fromTag || 'inicio',
+    toTag: commitsResponse.data.toTag || 'HEAD',
+    commitsCount: commitsResponse.data.commits?.length || 0,
+    baseVersion: currentVersion.value,
+    releaseType: versionType.value,
+    author: 'Usuario' // Se puede obtener de Git config si está disponible
+  }
+  
+  console.log('Template data:', templateData)
+  
+  // Usar el servicio de templates para renderizar con Liquid.js
+  const renderResponse = await templatesStore.renderTemplate(selectedTemplate.value.content, templateData)
+  console.log('Template render response:', renderResponse)
+  
+  if (renderResponse) {
+    generatedPreview.value = `<div class="space-y-4">${convertMarkdownToHtml(renderResponse)}</div>`
+  } else {
+    generatedPreview.value = 'Error generando preview'
+  }
+}
+
+const convertMarkdownToHtml = (markdown) => {
+  return markdown
+    // Headers
+    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
+    .replace(/^#### (.+)$/gm, '<h4 class="text-base font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h4>')
+    // Bold text
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
+    // List items - envolver en <ul>
+    .replace(/(^- .+$\n?)+/gm, (match) => {
+      const items = match.trim().split('\n').map(line => 
+        line.replace(/^- (.+)$/, '<li class="mb-1 text-gray-700 dark:text-gray-300">$1</li>')
+      ).join('\n')
+      return `<ul class="list-none space-y-1 mb-4">\n${items}\n</ul>`
+    })
+    // Horizontal rule
+    .replace(/^---$/gm, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
+    // Italic text
+    .replace(/\*([^*]+)\*/g, '<em class="italic text-gray-600 dark:text-gray-400">$1</em>')
+    // Párrafos - convertir saltos dobles en párrafos
+    .split('\n\n')
+    .filter(paragraph => paragraph.trim())
+    .map(paragraph => {
+      // Si ya es HTML (contiene tags), no envolver
+      if (paragraph.includes('<')) return paragraph
+      // Si es texto plano, envolver en párrafo
+      return `<p class="mb-4 text-gray-700 dark:text-gray-300">${paragraph.replace(/\n/g, '<br>')}</p>`
+    })
+    .join('\n')
 }
 
 const generateRelease = async () => {

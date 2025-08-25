@@ -60,6 +60,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   releaseCreate: (config) => ipcRenderer.invoke('release-create', config),
   releaseGetHistory: (repoPath, limit) => ipcRenderer.invoke('release-get-history', repoPath, limit),
   releaseSuggestVersion: (repoPath, currentVersion) => ipcRenderer.invoke('release-suggest-version', repoPath, currentVersion),
+  
+  // Unified releases
+  releaseCollectMultiRepositoryData: (mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion) => 
+    ipcRenderer.invoke('release-collect-multi-repository-data', mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion),
+  releaseGenerateUnifiedChangelog: (unifiedData, templateOrId) => 
+    ipcRenderer.invoke('release-generate-unified-changelog', unifiedData, templateOrId),
 
   // Configuración
   getConfig: (key) => ipcRenderer.invoke('get-config', key),

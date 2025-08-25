@@ -287,27 +287,55 @@ export class DatabaseService {
 **Fecha de Lanzamiento:** {{ date | date: "%d de %B de %Y" }}
 **Tipo de Release:** {{ type }}
 
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_docs = false %}
+{% assign has_chore = false %}
+{% assign has_other = false %}
+
+{% for commit in commits %}
+  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
+  {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign has_other = true %}{% endunless %}
+{% endfor %}
+
+{% if has_feat %}
 ## 🚀 Nuevas Características
-{% for commit in commits %}
-{% if commit.type == 'feat' %}
+{% for commit in commits %}{% if commit.type == "feat" %}
 - {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_fix %}
 ## 🐛 Correcciones
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
+{% for commit in commits %}{% if commit.type == "fix" %}
 - {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_docs %}
 ## 📝 Documentación
-{% for commit in commits %}
-{% if commit.type == 'docs' %}
+{% for commit in commits %}{% if commit.type == "docs" %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_chore %}
+## 🔧 Mantenimiento
+{% for commit in commits %}{% if commit.type == "chore" %}
+- {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_other %}
+## 📝 Otros Cambios
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}
+- {{ commit.subject }}
+{% endunless %}{% endfor %}
+
+{% endif %}
 ---
 *Generado automáticamente por ReleaseFlow*`
         },
@@ -317,26 +345,46 @@ export class DatabaseService {
           category: 'predefined',
           content: `## v{{ version }} - {{ date | date: "%Y-%m-%d" }}
 
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_refactor = false %}
+{% assign has_other = false %}
+
+{% for commit in commits %}
+  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "refactor" %}{% assign has_refactor = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "refactor" %}{% assign has_other = true %}{% endunless %}
+{% endfor %}
+
+{% if has_feat %}
 ### Added
-{% for commit in commits %}
-{% if commit.type == 'feat' %}
+{% for commit in commits %}{% if commit.type == "feat" %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_fix %}
 ### Fixed
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
+{% for commit in commits %}{% if commit.type == "fix" %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
-### Changed
-{% for commit in commits %}
-{% if commit.type == 'refactor' %}
-- {{ commit.subject }}
 {% endif %}
-{% endfor %}`
+{% if has_refactor %}
+### Changed
+{% for commit in commits %}{% if commit.type == "refactor" %}
+- {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}
+{% if has_other %}
+### Other
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "refactor" %}
+- {{ commit.subject }}
+{% endunless %}{% endfor %}
+
+{% endif %}`
         },
         {
           name: 'Release Notes con Breaking Changes',
@@ -344,34 +392,55 @@ export class DatabaseService {
           category: 'predefined',
           content: `# 🎉 Release v{{ version }}
 
+{% assign has_breaking = false %}
+{% assign has_feat = false %}
+{% assign has_fix = false %}
+{% assign has_maintenance = false %}
+{% assign has_docs = false %}
+
+{% for commit in commits %}
+  {% if commit.breaking %}{% assign has_breaking = true %}{% endif %}
+  {% if commit.type == "feat" and commit.breaking != true %}{% assign has_feat = true %}{% endif %}
+  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "chore" or commit.type == "refactor" %}{% assign has_maintenance = true %}{% endif %}
+  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
+{% endfor %}
+
+{% if has_breaking %}
 ## ⚠️ Breaking Changes
-{% for commit in commits %}
-{% if commit.breaking %}
+{% for commit in commits %}{% if commit.breaking %}
 - **{{ commit.subject }}**: {{ commit.body | default: "Ver documentación para más detalles" }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_feat %}
 ## ✨ Features
-{% for commit in commits %}
-{% if commit.type == 'feat' and commit.breaking != true %}
+{% for commit in commits %}{% if commit.type == "feat" and commit.breaking != true %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_fix %}
 ## 🐛 Bug Fixes
-{% for commit in commits %}
-{% if commit.type == 'fix' %}
+{% for commit in commits %}{% if commit.type == "fix" %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_maintenance %}
 ## 🔧 Maintenance
-{% for commit in commits %}
-{% if commit.type == 'chore' or commit.type == 'refactor' %}
+{% for commit in commits %}{% if commit.type == "chore" or commit.type == "refactor" %}
 - {{ commit.subject }}
-{% endif %}
-{% endfor %}
+{% endif %}{% endfor %}
 
+{% endif %}
+{% if has_docs %}
+## 📖 Documentation
+{% for commit in commits %}{% if commit.type == "docs" %}
+- {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}
 ---
 
 ### Instalación
@@ -379,20 +448,14 @@ export class DatabaseService {
 npm install your-package@{{ version }}
 \`\`\`
 
+{% if has_breaking %}
 ### Migración
-{% if breaking_changes %}
 ⚠️ Esta versión incluye cambios que rompen compatibilidad. 
 Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 {% endif %}
 
 **Fecha:** {{ date | date: "%d de %B de %Y" }}
-**Autor:** {{ author | default: "Release Team" }}
-
-{% for commit in commits %}
-{% if commit.type == 'docs' %}
-📖 {{ commit.subject }}
-{% endif %}
-{% endfor %}`
+**Autor:** {{ author | default: "Release Team" }}`
         }
       ]
 

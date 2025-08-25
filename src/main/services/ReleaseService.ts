@@ -65,6 +65,35 @@ export interface RollbackResult {
 
 export type VersionBump = 'major' | 'minor' | 'patch'
 
+export interface RepositoryData {
+  id: number
+  name: string
+  path: string
+  commits: GitCommit[]
+  analysis: CommitAnalysis
+  lastTag?: string
+}
+
+export interface UnifiedReleaseData extends Record<string, unknown> {
+  version: string
+  previousVersion: string | null
+  date: string
+  author: string
+  mainRepository: RepositoryData
+  secondaryRepositories: RepositoryData[]
+  project: {
+    name: string
+  }
+}
+
+export interface UnifiedReleaseConfig extends ReleaseConfig {
+  secondaryRepositories?: Array<{
+    id: number
+    name: string
+    path: string
+  }>
+}
+
 export class ReleaseService {
   private gitService: GitService
   private templateService: TemplateService
@@ -477,6 +506,141 @@ export class ReleaseService {
       }
     } catch (error) {
       throw new Error(`Error obteniendo estadísticas: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * Recopila datos de commits de todos los repositorios (principal + secundarios)
+   */
+  async collectMultiRepositoryData(
+    mainRepoId: number,
+    mainRepoName: string,
+    mainRepoPath: string,
+    secondaryRepositories: Array<{ id: number; name: string; path: string }>,
+    targetVersion: string
+  ): Promise<UnifiedReleaseData> {
+    try {
+      // Obtener el último tag del repositorio principal para determinar el rango de commits
+      const existingTags = await this.gitService.getTags(mainRepoPath, true)
+      const lastTag = existingTags.length > 0 ? existingTags[0] : null
+
+      // Recopilar datos del repositorio principal
+      let mainCommits: GitCommit[] = []
+      if (lastTag) {
+        mainCommits = await this.gitService.getCommitsBetweenTags(mainRepoPath, lastTag, 'HEAD')
+      }
+
+      const mainRepository: RepositoryData = {
+        id: mainRepoId,
+        name: mainRepoName,
+        path: mainRepoPath,
+        commits: mainCommits,
+        analysis: this.analyzeCommits(mainCommits),
+        lastTag,
+      }
+
+      // Recopilar datos de repositorios secundarios
+      const secondaryRepoData: RepositoryData[] = []
+
+      for (const secondaryRepo of secondaryRepositories) {
+        try {
+          // Obtener el último tag del repositorio secundario
+          const secondaryTags = await this.gitService.getTags(secondaryRepo.path, true)
+          const secondaryLastTag = secondaryTags.length > 0 ? secondaryTags[0] : null
+
+          // Obtener commits desde el último tag
+          let secondaryCommits: GitCommit[] = []
+          if (secondaryLastTag) {
+            secondaryCommits = await this.gitService.getCommitsBetweenTags(
+              secondaryRepo.path,
+              secondaryLastTag,
+              'HEAD'
+            )
+          }
+
+          secondaryRepoData.push({
+            id: secondaryRepo.id,
+            name: secondaryRepo.name,
+            path: secondaryRepo.path,
+            commits: secondaryCommits,
+            analysis: this.analyzeCommits(secondaryCommits),
+            lastTag: secondaryLastTag,
+          })
+        } catch (error) {
+          // Si hay error con un repositorio secundario, continuar con los demás
+          console.warn(`Error recopilando datos del repositorio ${secondaryRepo.name}:`, error)
+          secondaryRepoData.push({
+            id: secondaryRepo.id,
+            name: secondaryRepo.name,
+            path: secondaryRepo.path,
+            commits: [],
+            analysis: this.analyzeCommits([]),
+            lastTag: undefined,
+          })
+        }
+      }
+
+      return {
+        version: targetVersion,
+        previousVersion: lastTag,
+        date: new Date().toISOString().split('T')[0],
+        author: 'ReleaseFlow',
+        mainRepository,
+        secondaryRepositories: secondaryRepoData,
+        project: {
+          name: mainRepoName,
+        },
+      }
+    } catch (error) {
+      throw new Error(`Error recopilando datos multi-repositorio: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * Genera changelog unificado para múltiples repositorios
+   */
+  async generateUnifiedChangelog(
+    unifiedData: UnifiedReleaseData,
+    templateOrId: string
+  ): Promise<ChangelogResult> {
+    try {
+      let template: string
+
+      // Determinar si es un ID de template o un template directo
+      if (templateOrId.includes('{{') || templateOrId.includes('{%')) {
+        // Es un template directo
+        template = templateOrId
+      } else {
+        // Es un ID de template, cargarlo
+        const templateResult = await this.templateService.loadTemplate(templateOrId)
+        if (!templateResult.success || !templateResult.template) {
+          return {
+            success: false,
+            error: `Error cargando template: ${templateResult.error}`,
+          }
+        }
+        template = templateResult.template.template
+      }
+
+      // Renderizar el template con los datos unificados
+      const renderResult = await this.templateService.renderTemplate(template, unifiedData)
+
+      if (!renderResult.success) {
+        return {
+          success: false,
+          error: `Error renderizando changelog unificado: ${renderResult.error}`,
+        }
+      }
+
+      return {
+        success: true,
+        changelog: renderResult.output,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: `Error generando changelog unificado: ${(error as Error).message}`,
+      }
     }
   }
 }
