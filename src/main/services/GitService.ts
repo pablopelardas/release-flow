@@ -151,16 +151,21 @@ export class GitService {
 
       const git = this.getGitInstance(repoPath)
 
-      // Verificar si el tag ya existe
+      // Verificar si el tag ya existe y eliminarlo si es necesario
       const existingTags = await git.tags()
       if (existingTags.all.includes(tagName)) {
-        return {
-          success: false,
-          error: `El tag '${tagName}' ya existe en el repositorio`,
+        console.log(`🏷️ Tag '${tagName}' ya existe, eliminando para sobrescribir...`)
+        try {
+          // Eliminar el tag local
+          await git.tag(['-d', tagName])
+          console.log(`✅ Tag local '${tagName}' eliminado`)
+        } catch (deleteError) {
+          console.warn(`⚠️ No se pudo eliminar el tag local '${tagName}':`, deleteError)
+          // Continuar de todas formas, tal vez no existía localmente
         }
       }
 
-      // Crear el tag anotado
+      // Crear el tag anotado (usar -f para forzar sobrescritura si es necesario)
       await git.addAnnotatedTag(tagName, message)
 
       return {
@@ -256,6 +261,27 @@ export class GitService {
   async pushTags(repoPath: string, remote = 'origin'): Promise<GitPushResult> {
     try {
       const git = this.getGitInstance(repoPath)
+      
+      // Check if remote exists
+      const remotes = await git.getRemotes(true)
+      const remoteExists = remotes.some(r => r.name === remote)
+      
+      if (!remoteExists) {
+        return {
+          success: false,
+          error: `El remote '${remote}' no existe en el repositorio. Remotos disponibles: ${remotes.map(r => r.name).join(', ') || 'ninguno'}`,
+        }
+      }
+      
+      // Check if remote has a valid URL
+      const remoteInfo = remotes.find(r => r.name === remote)
+      if (!remoteInfo?.refs?.push && !remoteInfo?.refs?.fetch) {
+        return {
+          success: false,
+          error: `El remote '${remote}' no tiene una URL válida configurada`,
+        }
+      }
+
       await git.push(remote, '--tags')
 
       return { success: true }
@@ -264,6 +290,23 @@ export class GitService {
         success: false,
         error: `Error haciendo push de tags: ${(error as Error).message}`,
       }
+    }
+  }
+
+  /**
+   * Obtiene información de remotos configurados
+   */
+  async getRemotes(repoPath: string): Promise<Array<{name: string, url?: string}>> {
+    try {
+      const git = this.getGitInstance(repoPath)
+      const remotes = await git.getRemotes(true)
+      
+      return remotes.map(remote => ({
+        name: remote.name,
+        url: remote.refs.push || remote.refs.fetch || undefined
+      }))
+    } catch (error) {
+      throw new Error(`Error obteniendo remotos: ${(error as Error).message}`)
     }
   }
 
@@ -642,6 +685,79 @@ export class GitService {
   async isClean(repoPath: string): Promise<boolean> {
     const status = await this.getStatus(repoPath)
     return status.isClean
+  }
+
+  /**
+   * Valida el estado del repositorio antes de crear un release
+   */
+  async validateRepositoryForRelease(repoPath: string): Promise<{
+    isValid: boolean
+    warnings: string[]
+    errors: string[]
+    status: GitStatus
+  }> {
+    try {
+      const status = await this.getStatus(repoPath)
+      const warnings: string[] = []
+      const errors: string[] = []
+
+      // Verificar si el repositorio está sucio
+      if (!status.isClean) {
+        if (status.stagedFiles.length > 0) {
+          errors.push(`Hay ${status.stagedFiles.length} archivo(s) en staging sin commitear`)
+        }
+        if (status.modifiedFiles.length > 0) {
+          warnings.push(`Hay ${status.modifiedFiles.length} archivo(s) modificado(s) sin commitear`)
+        }
+        if (status.untrackedFiles.length > 0) {
+          warnings.push(`Hay ${status.untrackedFiles.length} archivo(s) sin trackear`)
+        }
+      }
+
+      // Verificar commits pendientes de push
+      if (status.aheadBy > 0) {
+        warnings.push(`Hay ${status.aheadBy} commit(s) pendiente(s) de push al remoto`)
+      }
+
+      // Verificar commits pendientes de pull
+      if (status.behindBy > 0) {
+        warnings.push(`El repositorio está ${status.behindBy} commit(s) atrás del remoto`)
+      }
+
+      // Verificar remotes disponibles
+      try {
+        const remotes = await this.getRemotes(repoPath)
+        if (remotes.length === 0) {
+          warnings.push('No hay remotos configurados - los tags no se podrán pushear automáticamente')
+        }
+      } catch (error) {
+        warnings.push('No se pudo verificar la configuración de remotos')
+      }
+
+      const isValid = errors.length === 0
+
+      return {
+        isValid,
+        warnings,
+        errors,
+        status
+      }
+    } catch (error) {
+      return {
+        isValid: false,
+        warnings: [],
+        errors: [`Error validando repositorio: ${(error as Error).message}`],
+        status: {
+          currentBranch: 'unknown',
+          modifiedFiles: [],
+          untrackedFiles: [],
+          stagedFiles: [],
+          aheadBy: 0,
+          behindBy: 0,
+          isClean: false
+        }
+      }
+    }
   }
 
   /**

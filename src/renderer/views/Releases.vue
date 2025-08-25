@@ -330,6 +330,43 @@
                 </div>
               </div>
 
+              <!-- Repository Validation -->
+              <div v-if="repositoryValidation.errors.length > 0 || repositoryValidation.warnings.length > 0" class="space-y-3">
+                <!-- Errors -->
+                <div v-if="repositoryValidation.errors.length > 0" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <h4 class="font-medium text-red-800 dark:text-red-200 mb-2 flex items-center">
+                    <i class="pi pi-exclamation-triangle mr-2"></i>
+                    Errores del Repositorio
+                  </h4>
+                  <ul class="text-sm text-red-700 dark:text-red-300 space-y-1">
+                    <li v-for="error in repositoryValidation.errors" :key="error" class="flex items-start">
+                      <i class="pi pi-times-circle mr-2 mt-0.5 text-red-500"></i>
+                      {{ error }}
+                    </li>
+                  </ul>
+                  <p class="text-xs text-red-600 dark:text-red-400 mt-2">
+                    ⚠️ No se puede crear el release hasta resolver estos errores
+                  </p>
+                </div>
+
+                <!-- Warnings -->
+                <div v-if="repositoryValidation.warnings.length > 0" class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <h4 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2 flex items-center">
+                    <i class="pi pi-exclamation-triangle mr-2"></i>
+                    Advertencias del Repositorio
+                  </h4>
+                  <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <li v-for="warning in repositoryValidation.warnings" :key="warning" class="flex items-start">
+                      <i class="pi pi-info-circle mr-2 mt-0.5 text-yellow-500"></i>
+                      {{ warning }}
+                    </li>
+                  </ul>
+                  <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                    ℹ️ Se recomienda resolver estas advertencias antes del release
+                  </p>
+                </div>
+              </div>
+
               <!-- Generated Content Preview -->
               <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                 <h4 class="font-semibold text-gray-900 dark:text-white mb-4">
@@ -359,6 +396,13 @@
                   <Checkbox v-model="createTag" :binary="true" />
                   <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
                     Crear tag de Git automáticamente
+                  </label>
+                </div>
+                <div class="flex items-center" v-if="createTag">
+                  <Checkbox v-model="pushTags" :binary="true" />
+                  <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    <i class="pi pi-upload mr-1 text-blue-500"></i>
+                    Hacer push automático de tags al repositorio remoto
                   </label>
                 </div>
                 <div class="flex items-center">
@@ -527,6 +571,7 @@ const selectedTemplate = ref(null)
 // Step 4: Preview and options
 const generatedPreview = ref('')
 const createTag = ref(true)
+const pushTags = ref(false)
 const saveToFile = ref(true)
 
 // Recent releases - usar store real
@@ -534,6 +579,14 @@ const recentReleases = computed(() => releasesStore.releases)
 
 // Información de repositorios secundarios
 const secondaryReposInfo = ref('')
+
+// Validación del repositorio
+const repositoryValidation = ref({
+  isValid: true,
+  warnings: [],
+  errors: [],
+  status: null
+})
 
 // Computed properties
 const canProceed = computed(() => {
@@ -545,7 +598,7 @@ const canProceed = computed(() => {
     case 3:
       return selectedTemplate.value !== null
     case 4:
-      return true
+      return repositoryValidation.value.isValid
     default:
       return false
   }
@@ -571,7 +624,14 @@ const resetWizardData = () => {
   selectedTemplate.value = null
   generatedPreview.value = ''
   createTag.value = true
+  pushTags.value = false
   saveToFile.value = true
+  repositoryValidation.value = {
+    isValid: true,
+    warnings: [],
+    errors: [],
+    status: null
+  }
 }
 
 const nextStep = () => {
@@ -582,6 +642,7 @@ const nextStep = () => {
     if (currentStep.value === 4) {
       generatePreview()
       loadSecondaryReposInfo()
+      validateRepositoryForRelease()
     }
   }
 }
@@ -949,7 +1010,7 @@ const generateRelease = async () => {
     if (createTag.value) {
       console.log('📝 Creando tag de Git...')
       const tagName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
-      const releaseMessage = `Release ${finalVersion}\n\n${generatedPreview.value.replace(/<[^>]*>/g, '')}`
+      const releaseMessage = generateCleanTagMessage(finalVersion, generatedPreview.value)
       
       console.log(`🏷️ Tag name: ${tagName}`)
       
@@ -984,7 +1045,7 @@ const generateRelease = async () => {
               const secondaryTagResponse = await window.electronAPI.gitCreateTag(
                 secondaryRepo.path,
                 tagName, // Usar exactamente el mismo tag que el principal
-                `Release ${finalVersion} (from ${selectedRepository.value.name})\n\n${generatedPreview.value.replace(/<[^>]*>/g, '')}`
+                generateCleanTagMessage(finalVersion, generatedPreview.value, `from ${selectedRepository.value.name}`)
               )
               
               if (secondaryTagResponse.success) {
@@ -1005,6 +1066,53 @@ const generateRelease = async () => {
           }
         } else {
           console.log('ℹ️ No hay repositorios secundarios configurados')
+        }
+      }
+      
+      // Push tags to remote if enabled
+      if (pushTags.value) {
+        console.log('📤 Haciendo push de tags al repositorio remoto...')
+        
+        // Push tags from main repository
+        const pushResponse = await window.electronAPI.gitPushTags(selectedRepository.value.path)
+        if (!pushResponse.success) {
+          console.warn('⚠️ Error haciendo push de tags en repositorio principal:', pushResponse.error)
+          alert(`⚠️ Tags creados exitosamente, pero hubo un error al hacer push en el repositorio principal:\n${pushResponse.error}`)
+        } else {
+          console.log('✅ Tags pusheados exitosamente en repositorio principal')
+        }
+        
+        // Push tags from secondary repositories if this is a main repository
+        if (selectedRepository.value.is_main_repository) {
+          const secondaryResponse = await window.electronAPI.dbGetSecondaryRepositories(selectedRepository.value.id)
+          
+          if (secondaryResponse.success && secondaryResponse.data.repositories.length > 0) {
+            console.log(`📤 Haciendo push de tags en ${secondaryResponse.data.repositories.length} repositorios secundarios...`)
+            
+            const pushErrors = []
+            
+            for (const secondaryRepo of secondaryResponse.data.repositories) {
+              try {
+                const secondaryPushResponse = await window.electronAPI.gitPushTags(secondaryRepo.path)
+                
+                if (secondaryPushResponse.success) {
+                  console.log(`✅ Tags pusheados en ${secondaryRepo.name}`)
+                } else {
+                  console.error(`❌ Error haciendo push de tags en ${secondaryRepo.name}:`, secondaryPushResponse.error)
+                  pushErrors.push(`${secondaryRepo.name}: ${secondaryPushResponse.error}`)
+                }
+              } catch (error) {
+                console.error(`❌ Error procesando push en repositorio ${secondaryRepo.name}:`, error)
+                pushErrors.push(`${secondaryRepo.name}: ${error.message}`)
+              }
+            }
+            
+            if (pushErrors.length > 0) {
+              console.warn('⚠️ Algunos repositorios secundarios tuvieron errores al hacer push:', pushErrors)
+              // Show warning but don't fail completely
+              alert(`⚠️ Tags creados exitosamente, pero algunos repositorios tuvieron errores al hacer push:\n${pushErrors.join('\n')}`)
+            }
+          }
         }
       }
     }
@@ -1201,6 +1309,76 @@ const downloadRelease = async (release) => {
   }
 }
 
+const validateRepositoryForRelease = async () => {
+  if (!selectedRepository.value) {
+    repositoryValidation.value = {
+      isValid: false,
+      warnings: [],
+      errors: ['No hay repositorio seleccionado'],
+      status: null
+    }
+    return
+  }
+
+  try {
+    console.log('🔍 Validando estado del repositorio:', selectedRepository.value.name)
+    const response = await window.electronAPI.gitValidateForRelease(selectedRepository.value.path)
+    
+    if (response.success) {
+      repositoryValidation.value = response.data
+      console.log('✅ Validación completada:', response.data)
+      
+      // También validar repositorios secundarios si es un repo principal
+      if (selectedRepository.value.is_main_repository) {
+        try {
+          const secondaryResponse = await window.electronAPI.dbGetSecondaryRepositories(selectedRepository.value.id)
+          
+          if (secondaryResponse.success && secondaryResponse.data.repositories.length > 0) {
+            console.log('🔍 Validando repositorios secundarios...')
+            
+            for (const secondaryRepo of secondaryResponse.data.repositories) {
+              try {
+                const secondaryValidation = await window.electronAPI.gitValidateForRelease(secondaryRepo.path)
+                
+                if (secondaryValidation.success && !secondaryValidation.data.isValid) {
+                  // Agregar errores/warnings del repositorio secundario
+                  secondaryValidation.data.errors.forEach(error => {
+                    repositoryValidation.value.errors.push(`${secondaryRepo.name}: ${error}`)
+                  })
+                  secondaryValidation.data.warnings.forEach(warning => {
+                    repositoryValidation.value.warnings.push(`${secondaryRepo.name}: ${warning}`)
+                  })
+                  repositoryValidation.value.isValid = repositoryValidation.value.isValid && secondaryValidation.data.isValid
+                }
+              } catch (error) {
+                console.warn(`⚠️ Error validando repositorio secundario ${secondaryRepo.name}:`, error)
+                repositoryValidation.value.warnings.push(`${secondaryRepo.name}: No se pudo validar el estado`)
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Error obteniendo repositorios secundarios:', error)
+        }
+      }
+    } else {
+      repositoryValidation.value = {
+        isValid: false,
+        warnings: [],
+        errors: [`Error validando repositorio: ${response.error}`],
+        status: null
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error en validación:', error)
+    repositoryValidation.value = {
+      isValid: false,
+      warnings: [],
+      errors: [`Error inesperado: ${error.message}`],
+      status: null
+    }
+  }
+}
+
 const loadSecondaryReposInfo = async () => {
   if (!selectedRepository.value?.is_main_repository) {
     secondaryReposInfo.value = ''
@@ -1268,6 +1446,27 @@ const convertHtmlToMarkdown = (htmlContent) => {
   markdown = markdown.replace(/\n\s*\n\s*\n/g, '\n\n').trim()
   
   return markdown
+}
+
+// Función para generar un mensaje de tag limpio y bien formateado
+const generateCleanTagMessage = (version, htmlContent, suffix = '') => {
+  // Convertir HTML a markdown limpio
+  const cleanMarkdown = convertHtmlToMarkdown(htmlContent)
+  
+  // Crear mensaje del tag con formato mejorado
+  const title = suffix ? `Release ${version} (${suffix})` : `Release ${version}`
+  
+  // Limpiar y formatear el contenido
+  const cleanedContent = cleanMarkdown
+    .replace(/^#{1,6}\s+/gm, '') // Remover headers markdown (ya tenemos el título)
+    .replace(/^\s*[\*\-]\s*/gm, '• ') // Convertir bullets a símbolos más compatibles
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Normalizar espacios
+    .replace(/^---+$/gm, '') // Remover separadores horizontales
+    .replace(/\*\*(.+?)\*\*/g, '$1') // Remover bold markdown (algunos sistemas no lo soportan bien)
+    .replace(/^\s+|\s+$/g, '') // Trim general
+    .substring(0, 1500) // Limitar longitud para evitar problemas con Git
+  
+  return `${title}\n\n${cleanedContent}`
 }
 
 

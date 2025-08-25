@@ -1121,9 +1121,9 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         }
       }
 
-      // Insertar el release
+      // Insertar o reemplazar el release (en caso de que ya existe)
       const stmt = this.db.prepare(`
-        INSERT INTO releases (repository_id, version, tag_name, release_notes, commit_count)
+        INSERT OR REPLACE INTO releases (repository_id, version, tag_name, release_notes, commit_count)
         VALUES (?, ?, ?, ?, ?)
       `)
 
@@ -1138,16 +1138,27 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         commitCount
       )
 
+      // Determinar si fue inserción o actualización basado en si hubo cambios
+      const action = result.changes === 1 && result.lastInsertRowid ? 'created' : 'updated'
+      
+      // Obtener el ID del release (puede ser nuevo o existente)
+      let releaseId = result.lastInsertRowid as number
+      if (!releaseId) {
+        const existingRelease = this.db.prepare('SELECT id FROM releases WHERE repository_id = ? AND version = ?')
+          .get(repo.id, releaseData.version) as { id: number } | undefined
+        releaseId = existingRelease?.id || 0
+      }
+
       // Insertar en historial
       const historyStmt = this.db.prepare(`
         INSERT INTO release_history (release_id, action, details)
-        VALUES (?, 'created', ?)
+        VALUES (?, ?, ?)
       `)
-      historyStmt.run(result.lastInsertRowid, JSON.stringify(releaseData))
+      historyStmt.run(releaseId, action, JSON.stringify(releaseData))
 
       return {
         success: true,
-        data: { id: result.lastInsertRowid as number },
+        data: { id: releaseId },
       }
     } catch (error) {
       return {

@@ -330,6 +330,39 @@ ipcMain.handle('git-get-commits-for-release-type', async (_event, repoPath, curr
   }
 })
 
+ipcMain.handle('git-push-tags', async (_event, repoPath, remote = 'origin') => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.pushTags(repoPath, remote)
+    return result
+  } catch (error) {
+    console.error('Error en git-push-tags:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('git-get-remotes', async (_event, repoPath) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getRemotes(repoPath)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en git-get-remotes:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('git-validate-for-release', async (_event, repoPath) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.validateRepositoryForRelease(repoPath)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en git-validate-for-release:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
 // Template Service Handlers
 ipcMain.handle('template-render', async (_event, templateContent, data) => {
   try {
