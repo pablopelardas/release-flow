@@ -1,24 +1,21 @@
 import { defineStore } from 'pinia'
 
+// Store principal de la aplicación para estado global
 export const useAppStore = defineStore('app', {
   state: () => ({
     loading: false,
-    repositories: [],
-    templates: [],
-    releases: [],
+    error: null,
     currentUser: null,
-    settings: {
-      theme: 'light',
-      autoSave: true,
-      notifications: true,
-    },
+    appVersion: '1.0.0',
+    isOnline: true,
+    lastActivity: null,
+    notifications: [],
   }),
 
   getters: {
-    repositoriesCount: (state) => state.repositories.length,
-    templatesCount: (state) => state.templates.length,
-    releasesCount: (state) => state.releases.length,
-    isDarkTheme: (state) => state.settings.theme === 'dark',
+    hasError: (state) => state.error !== null,
+    hasNotifications: (state) => state.notifications.length > 0,
+    unreadNotifications: (state) => state.notifications.filter(n => !n.read),
   },
 
   actions: {
@@ -26,33 +23,110 @@ export const useAppStore = defineStore('app', {
       this.loading = loading
     },
 
-    async loadRepositories() {
-      this.loading = true
-      try {
-        // TODO: Implementar carga desde API/DB
-        this.repositories = []
-      } catch (error) {
-        console.error('Error loading repositories:', error)
-      } finally {
-        this.loading = false
+    setError(error) {
+      this.error = error
+    },
+
+    clearError() {
+      this.error = null
+    },
+
+    addNotification(notification) {
+      const newNotification = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        read: false,
+        type: 'info',
+        ...notification,
+      }
+      
+      this.notifications.unshift(newNotification)
+      
+      // Limitar a 50 notificaciones
+      if (this.notifications.length > 50) {
+        this.notifications = this.notifications.slice(0, 50)
       }
     },
 
-    async loadTemplates() {
-      this.loading = true
-      try {
-        // TODO: Implementar carga desde API/DB
-        this.templates = []
-      } catch (error) {
-        console.error('Error loading templates:', error)
-      } finally {
-        this.loading = false
+    markNotificationAsRead(id) {
+      const notification = this.notifications.find(n => n.id === id)
+      if (notification) {
+        notification.read = true
       }
     },
 
-    updateSettings(newSettings) {
-      this.settings = { ...this.settings, ...newSettings }
-      // TODO: Persistir en base de datos local
+    clearNotifications() {
+      this.notifications = []
+    },
+
+    updateLastActivity() {
+      this.lastActivity = new Date().toISOString()
+    },
+
+    async initializeApp() {
+      this.setLoading(true)
+      this.clearError()
+      
+      try {
+        // Inicializar todos los stores necesarios
+        const { useSettingsStore } = await import('./settings.js')
+        const { useRepositoriesStore } = await import('./repositories.js')
+        const { useTemplatesStore } = await import('./templates.js')
+        
+        const settingsStore = useSettingsStore()
+        const repositoriesStore = useRepositoriesStore()
+        const templatesStore = useTemplatesStore()
+        
+        // Cargar configuraciones primero
+        await settingsStore.loadSettings()
+        
+        // Configurar auto-save
+        settingsStore.setupAutoSave()
+        
+        // Cargar datos iniciales en paralelo
+        await Promise.all([
+          repositoriesStore.loadRepositories(),
+          templatesStore.loadTemplates(),
+          templatesStore.loadPredefinedTemplates(),
+        ])
+        
+        this.addNotification({
+          type: 'success',
+          title: 'Aplicación iniciada',
+          message: 'ReleaseFlow se ha inicializado correctamente',
+        })
+        
+      } catch (error) {
+        console.error('Error initializing app:', error)
+        this.setError(error.message)
+        
+        this.addNotification({
+          type: 'error',
+          title: 'Error de inicialización',
+          message: 'Hubo un problema al inicializar la aplicación',
+        })
+      } finally {
+        this.setLoading(false)
+        this.updateLastActivity()
+      }
+    },
+
+    async handleGlobalError(error, context = 'Unknown') {
+      console.error(`Global error in ${context}:`, error)
+      
+      this.setError(error.message || 'Error desconocido')
+      
+      this.addNotification({
+        type: 'error',
+        title: `Error en ${context}`,
+        message: error.message || 'Ha ocurrido un error inesperado',
+      })
     },
   },
 })
+
+// Re-exportar todos los stores para fácil acceso
+export { useRepositoriesStore } from './repositories.js'
+export { useTemplatesStore } from './templates.js'
+export { useReleasesStore } from './releases.js'
+export { useSettingsStore } from './settings.js'

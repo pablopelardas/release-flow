@@ -39,8 +39,11 @@ describe('Dashboard Vista', () => {
     expect(wrapper.text()).toContain('Releases')
   })
 
-  it('debe tener elementos con números', () => {
-    expect(wrapper.text()).toContain('0')
+  it('debe tener elementos con contadores', () => {
+    // Verificar que hay números (pueden ser 0 o más)
+    const text = wrapper.text()
+    const hasNumbers = /\d+/.test(text)
+    expect(hasNumbers).toBe(true)
   })
 
   it('debe tener la estructura HTML básica', () => {
