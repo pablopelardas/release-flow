@@ -1,16 +1,22 @@
 {
   "name": "releaseflow-electron",
   "version": "1.0.0",
+  "type": "module",
   "description": "ReleaseFlow Desktop - Aplicación Electron para gestión automatizada de releases",
   "main": "src/main/main.js",
   "scripts": {
-    "dev": "concurrently \"vite\" \"electron src/main/main.js\"",
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron src/main/main.js\"",
+    "dev:simple": "concurrently \"vite\" \"electron src/main/main.js\"",
     "build": "vite build",
     "electron": "electron .",
     "test": "vitest",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "lint": "eslint src --ext .js,.ts,.vue",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "preview": "vite preview"
   },
   "keywords": [
@@ -22,7 +28,11 @@
   "author": "Intuit Development Team",
   "license": "MIT",
   "devDependencies": {
+    "@biomejs/biome": "^2.2.2",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.10.0",
+    "@types/semver": "^7.7.0",
     "@vitejs/plugin-vue": "^4.5.0",
     "@vue/test-utils": "^2.4.3",
     "autoprefixer": "^10.4.21",
@@ -31,14 +41,22 @@
     "eslint": "^8.55.0",
     "jsdom": "^23.0.1",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.12",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
     "vite-plugin-electron": "^0.15.5",
     "vitest": "^1.0.4"
   },
   "dependencies": {
+    "@vueuse/core": "^10.11.1",
+    "better-sqlite3": "^12.2.0",
+    "liquidjs": "^10.21.1",
+    "monaco-editor": "^0.44.0",
     "pinia": "^2.1.7",
+    "primeicons": "^7.0.0",
+    "primevue": "^3.53.1",
+    "semver": "^7.7.2",
+    "simple-git": "^3.28.0",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"
   }

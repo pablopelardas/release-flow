@@ -10,15 +10,15 @@ export const useAppStore = defineStore('app', {
     settings: {
       theme: 'light',
       autoSave: true,
-      notifications: true
-    }
+      notifications: true,
+    },
   }),
 
   getters: {
     repositoriesCount: (state) => state.repositories.length,
     templatesCount: (state) => state.templates.length,
     releasesCount: (state) => state.releases.length,
-    isDarkTheme: (state) => state.settings.theme === 'dark'
+    isDarkTheme: (state) => state.settings.theme === 'dark',
   },
 
   actions: {
@@ -53,6 +53,6 @@ export const useAppStore = defineStore('app', {
     updateSettings(newSettings) {
       this.settings = { ...this.settings, ...newSettings }
       // TODO: Persistir en base de datos local
-    }
-  }
+    },
+  },
 })

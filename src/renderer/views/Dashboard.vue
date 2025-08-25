@@ -62,12 +62,12 @@ export default {
   name: 'Dashboard',
   setup() {
     const store = useAppStore()
-    
+
     return {
       repositoriesCount: computed(() => store.repositoriesCount),
       templatesCount: computed(() => store.templatesCount),
-      releasesCount: computed(() => store.releasesCount)
+      releasesCount: computed(() => store.releasesCount),
     }
-  }
+  },
 }
 </script>

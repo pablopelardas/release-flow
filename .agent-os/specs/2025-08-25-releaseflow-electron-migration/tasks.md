@@ -1,8 +1,19 @@
 # Spec Tasks
 
+## ✅ PROGRESO ACTUAL - Task 3 PARCIALMENTE COMPLETADO
+
+### 🎯 CHECKPOINT (2025-08-25): 
+- **Task 1**: ✅ COMPLETADO (16 tests pasando)
+- **Task 2**: ✅ COMPLETADO (83 tests pasando + BiomeJS linting)  
+- **Task 3**: 🔄 50% COMPLETADO (layout + repositorios funcionales)
+
+### 🚀 PRÓXIMO PASO: Task 3.6 - Editor de Templates con Monaco Editor
+
+---
+
 ## Tasks
 
-- [x] 1. Configuración inicial del proyecto Electron + Vue 3
+- [x] 1. Configuración inicial del proyecto Electron + Vue 3 ✅ **COMPLETADO**
   - [x] 1.1 Escribir tests para estructura del proyecto y configuración básica
   - [x] 1.2 Inicializar proyecto con npm y configuración de TypeScript
   - [x] 1.3 Instalar Electron 37.3 y dependencias core (Vue 3, Vite, Pinia)
@@ -12,24 +23,28 @@
   - [x] 1.7 Implementar context bridge básico para IPC
   - [x] 1.8 Verificar que todos los tests de configuración pasen
 
-- [ ] 2. Migración de servicios backend a JavaScript/TypeScript
-  - [ ] 2.1 Escribir tests para GitService con simple-git
-  - [ ] 2.2 Implementar GitService (validación, tags, commits, operaciones)
-  - [ ] 2.3 Escribir tests para TemplateService con Liquid.js
-  - [ ] 2.4 Implementar TemplateService con motor Liquid
-  - [ ] 2.5 Escribir tests para ReleaseService
-  - [ ] 2.6 Implementar ReleaseService con lógica de versionado semántico
-  - [ ] 2.7 Escribir tests para DatabaseService con better-sqlite3
-  - [ ] 2.8 Implementar DatabaseService con esquema SQLite migrado
-  - [ ] 2.9 Verificar que todos los tests de servicios pasen
+- [x] 2. Migración de servicios backend a JavaScript/TypeScript ✅ **COMPLETADO**
+  - [x] 2.1 Escribir tests para GitService con simple-git (17 tests)
+  - [x] 2.2 Implementar GitService (validación, tags, commits, operaciones)
+  - [x] 2.3 Escribir tests para TemplateService con Liquid.js (22 tests)
+  - [x] 2.4 Implementar TemplateService con motor Liquid + filtros personalizados
+  - [x] 2.5 Escribir tests para ReleaseService (19 tests)
+  - [x] 2.6 Implementar ReleaseService con lógica de versionado semántico
+  - [x] 2.7 Escribir tests para DatabaseService con better-sqlite3 (25 tests)
+  - [x] 2.8 Implementar DatabaseService con esquema SQLite migrado
+  - [x] 2.9 Verificar que todos los tests de servicios pasen + BiomeJS linting
 
-- [ ] 3. Desarrollo de interfaz Vue 3 con componentes principales
-  - [ ] 3.1 Escribir tests para componentes Vue principales
-  - [ ] 3.2 Configurar TailwindCSS y sistema de diseño
-  - [ ] 3.3 Implementar layout principal con navegación
-  - [ ] 3.4 Desarrollar vista Dashboard con métricas
-  - [ ] 3.5 Implementar vista de gestión de repositorios
-  - [ ] 3.6 Desarrollar editor de templates con Monaco Editor
+- [ ] 3. Desarrollo de interfaz Vue 3 con componentes principales 🔄 **50% COMPLETADO**
+  - [ ] 3.1 Escribir tests para componentes Vue principales (PENDIENTE)
+  - [x] 3.2 Configurar TailwindCSS y sistema de diseño + PrimeVue ✅
+  - [x] 3.3 Implementar layout principal con navegación + tema oscuro/claro ✅
+  - [x] 3.4 Desarrollar vista Dashboard con métricas ✅
+  - [x] 3.5 Implementar vista de gestión de repositorios ✅ **FUNCIONAL COMPLETA**
+    - ✅ Modal agregar repositorio con selector nativo de Windows
+    - ✅ Cards con info completa (nombre, rama, commits, estado)
+    - ✅ Botones funcionales: Abrir Explorer, Actualizar, Eliminar
+    - ✅ Contraste modo oscuro + spacing arreglado
+  - [ ] 3.6 Desarrollar editor de templates con Monaco Editor 🎯 **PRÓXIMO**
   - [ ] 3.7 Implementar preview en tiempo real con Liquid.js
   - [ ] 3.8 Crear wizard de generación de releases
   - [ ] 3.9 Verificar que todos los tests de UI pasen

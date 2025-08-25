@@ -1,6 +1,6 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';  
-@import 'tailwindcss/utilities';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 /* Base styles */
 * {
@@ -9,9 +9,10 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Dark mode support */
@@ -19,6 +20,209 @@ html, body {
   :root {
     color-scheme: dark;
   }
+}
+
+/* PrimeVue Components - Restore default spacing that Tailwind resets */
+.p-button {
+  padding: 0.75rem 1rem !important;
+}
+
+.p-button .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.p-button .p-button-icon-right {
+  margin-left: 0.5rem !important;
+  margin-right: 0 !important;
+}
+
+.p-button.p-button-sm {
+  padding: 0.5rem 0.75rem !important;
+}
+
+.p-card .p-card-body {
+  padding: 1.25rem !important;
+}
+
+.p-card .p-card-header {
+  padding: 1.25rem 1.25rem 0 1.25rem !important;
+}
+
+.p-card .p-card-footer {
+  padding: 0 1.25rem 1.25rem 1.25rem !important;
+}
+
+.p-dialog .p-dialog-header {
+  padding: 1.5rem 1.5rem 0 1.5rem !important;
+}
+
+.p-dialog .p-dialog-content {
+  padding: 1.5rem !important;
+}
+
+.p-dialog .p-dialog-footer {
+  padding: 0 1.5rem 1.5rem 1.5rem !important;
+}
+
+.p-inputtext {
+  padding: 0.75rem 0.75rem !important;
+}
+
+.p-badge {
+  padding: 0.25rem 0.5rem !important;
+  min-width: 1.5rem !important;
+}
+
+.p-tag {
+  padding: 0.25rem 0.5rem !important;
+}
+
+.p-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+
+/* Light mode tag and badge colors for better contrast */
+.p-tag {
+  background: #e5e7eb !important;
+  color: #374151 !important;
+}
+
+.p-tag.p-tag-info {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+.p-badge {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.p-badge.p-badge-success {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+.p-badge.p-badge-warning {
+  background: #d97706 !important;
+  color: #ffffff !important;
+}
+
+.p-badge.p-badge-info {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+/* PrimeVue Dark Theme Overrides */
+.p-dialog {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  z-index: 1000 !important;
+}
+
+.dark .p-dialog {
+  background: #1f2937 !important;
+  color: #f9fafb !important;
+  border: 1px solid #374151 !important;
+}
+
+.dark .p-dialog .p-dialog-header {
+  background: #1f2937 !important;
+  color: #f9fafb !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+.dark .p-dialog .p-dialog-content {
+  background: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+.dark .p-dialog .p-dialog-footer {
+  background: #1f2937 !important;
+  border-top: 1px solid #374151 !important;
+}
+
+.dark .p-inputtext {
+  background: #374151 !important;
+  color: #f9fafb !important;
+  border: 1px solid #4b5563 !important;
+}
+
+.dark .p-inputtext:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 1px #3b82f6 !important;
+}
+
+.dark .p-button {
+  color: #f9fafb !important;
+}
+
+.dark .p-button.p-button-text {
+  color: #9ca3af !important;
+}
+
+.dark .p-button.p-button-text:hover {
+  background: #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .p-card {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .p-card .p-card-content {
+  color: #f9fafb !important;
+}
+
+.dark .p-card .p-card-footer {
+  border-top: 1px solid #374151 !important;
+}
+
+.dark .p-tag {
+  background: #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .p-tag.p-tag-info {
+  background: #1e40af !important;
+  color: #dbeafe !important;
+}
+
+.dark .p-badge {
+  background: #dc2626 !important;
+  color: #fef2f2 !important;
+}
+
+.dark .p-badge.p-badge-success {
+  background: #16a34a !important;
+  color: #dcfce7 !important;
+}
+
+.dark .p-badge.p-badge-warning {
+  background: #d97706 !important;
+  color: #fefbf3 !important;
+}
+
+.dark .p-badge.p-badge-info {
+  background: #0284c7 !important;
+  color: #e0f2fe !important;
+}
+
+/* Fix any remaining text color issues in dark mode */
+.dark * {
+  color: inherit;
+}
+
+/* Dialog mask/overlay */
+.p-dialog-mask {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+  z-index: 999 !important;
 }
 
 /* Custom scrollbar */

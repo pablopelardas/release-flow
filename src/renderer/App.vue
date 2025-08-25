@@ -1,19 +1,14 @@
 <template>
-  <div id="app"
-       class="h-screen bg-gray-50 dark:bg-gray-900">
-    <router-view />
-  </div>
+  <MainLayout />
 </template>
 
-<script>
-export default {
-  name: 'App'
-}
+<script setup>
+import MainLayout from './layouts/MainLayout.vue'
 </script>
 
 <style>
 #app {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

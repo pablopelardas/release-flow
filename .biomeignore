@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-electron/
+.vscode/
+*.log
+.agent-os/
+.git/
+coverage/
