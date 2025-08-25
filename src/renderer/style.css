@@ -24,194 +24,194 @@ body {
 
 /* PrimeVue Components - Restore default spacing that Tailwind resets */
 .p-button {
-  padding: 0.75rem 1rem !important;
+  padding: 0.75rem 1rem;
 }
 
 .p-button .p-button-icon {
-  margin-right: 0.5rem !important;
+  margin-right: 0.5rem;
 }
 
 .p-button .p-button-icon-right {
-  margin-left: 0.5rem !important;
-  margin-right: 0 !important;
+  margin-left: 0.5rem;
+  margin-right: 0;
 }
 
 .p-button.p-button-sm {
-  padding: 0.5rem 0.75rem !important;
+  padding: 0.5rem 0.75rem;
 }
 
 .p-card .p-card-body {
-  padding: 1.25rem !important;
+  padding: 1.25rem;
 }
 
 .p-card .p-card-header {
-  padding: 1.25rem 1.25rem 0 1.25rem !important;
+  padding: 1.25rem 1.25rem 0 1.25rem;
 }
 
 .p-card .p-card-footer {
-  padding: 0 1.25rem 1.25rem 1.25rem !important;
+  padding: 0 1.25rem 1.25rem 1.25rem;
 }
 
 .p-dialog .p-dialog-header {
-  padding: 1.5rem 1.5rem 0 1.5rem !important;
+  padding: 1.5rem 1.5rem 0 1.5rem;
 }
 
 .p-dialog .p-dialog-content {
-  padding: 1.5rem !important;
+  padding: 1.5rem;
 }
 
 .p-dialog .p-dialog-footer {
-  padding: 0 1.5rem 1.5rem 1.5rem !important;
+  padding: 0 1.5rem 1.5rem 1.5rem;
 }
 
 .p-inputtext {
-  padding: 0.75rem 0.75rem !important;
+  padding: 0.75rem 0.75rem;
 }
 
 .p-badge {
-  padding: 0.25rem 0.5rem !important;
-  min-width: 1.5rem !important;
+  padding: 0.25rem 0.5rem;
+  min-width: 1.5rem;
 }
 
 .p-tag {
-  padding: 0.25rem 0.5rem !important;
+  padding: 0.25rem 0.5rem;
 }
 
 .p-badge {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 /* Light mode tag and badge colors for better contrast */
 .p-tag {
-  background: #e5e7eb !important;
-  color: #374151 !important;
+  background: #e5e7eb;
+  color: #374151;
 }
 
 .p-tag.p-tag-info {
-  background: #dbeafe !important;
-  color: #1e40af !important;
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .p-badge {
-  background: #dc2626 !important;
-  color: #ffffff !important;
+  background: #dc2626;
+  color: #ffffff;
 }
 
 .p-badge.p-badge-success {
-  background: #16a34a !important;
-  color: #ffffff !important;
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .p-badge.p-badge-warning {
-  background: #d97706 !important;
-  color: #ffffff !important;
+  background: #d97706;
+  color: #ffffff;
 }
 
 .p-badge.p-badge-info {
-  background: #0284c7 !important;
-  color: #ffffff !important;
+  background: #0284c7;
+  color: #ffffff;
 }
 
 /* PrimeVue Dark Theme Overrides */
 .p-dialog {
-  background: #ffffff !important;
-  color: #1f2937 !important;
-  border: 1px solid #e5e7eb !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-  z-index: 1000 !important;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
 }
 
 .dark .p-dialog {
-  background: #1f2937 !important;
-  color: #f9fafb !important;
-  border: 1px solid #374151 !important;
+  background: #1f2937;
+  color: #f9fafb;
+  border: 1px solid #374151;
 }
 
 .dark .p-dialog .p-dialog-header {
-  background: #1f2937 !important;
-  color: #f9fafb !important;
-  border-bottom: 1px solid #374151 !important;
+  background: #1f2937;
+  color: #f9fafb;
+  border-bottom: 1px solid #374151;
 }
 
 .dark .p-dialog .p-dialog-content {
-  background: #1f2937 !important;
-  color: #f9fafb !important;
+  background: #1f2937;
+  color: #f9fafb;
 }
 
 .dark .p-dialog .p-dialog-footer {
-  background: #1f2937 !important;
-  border-top: 1px solid #374151 !important;
+  background: #1f2937;
+  border-top: 1px solid #374151;
 }
 
 .dark .p-inputtext {
-  background: #374151 !important;
-  color: #f9fafb !important;
-  border: 1px solid #4b5563 !important;
+  background: #374151;
+  color: #f9fafb;
+  border: 1px solid #4b5563;
 }
 
 .dark .p-inputtext:focus {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 1px #3b82f6 !important;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 .dark .p-button {
-  color: #f9fafb !important;
+  color: #f9fafb;
 }
 
 .dark .p-button.p-button-text {
-  color: #9ca3af !important;
+  color: #9ca3af;
 }
 
 .dark .p-button.p-button-text:hover {
-  background: #374151 !important;
-  color: #f9fafb !important;
+  background: #374151;
+  color: #f9fafb;
 }
 
 .dark .p-card {
-  background: #1f2937 !important;
-  border: 1px solid #374151 !important;
-  color: #f9fafb !important;
+  background: #1f2937;
+  border: 1px solid #374151;
+  color: #f9fafb;
 }
 
 .dark .p-card .p-card-content {
-  color: #f9fafb !important;
+  color: #f9fafb;
 }
 
 .dark .p-card .p-card-footer {
-  border-top: 1px solid #374151 !important;
+  border-top: 1px solid #374151;
 }
 
 .dark .p-tag {
-  background: #374151 !important;
-  color: #f9fafb !important;
+  background: #374151;
+  color: #f9fafb;
 }
 
 .dark .p-tag.p-tag-info {
-  background: #1e40af !important;
-  color: #dbeafe !important;
+  background: #1e40af;
+  color: #dbeafe;
 }
 
 .dark .p-badge {
-  background: #dc2626 !important;
-  color: #fef2f2 !important;
+  background: #dc2626;
+  color: #fef2f2;
 }
 
 .dark .p-badge.p-badge-success {
-  background: #16a34a !important;
-  color: #dcfce7 !important;
+  background: #16a34a;
+  color: #dcfce7;
 }
 
 .dark .p-badge.p-badge-warning {
-  background: #d97706 !important;
-  color: #fefbf3 !important;
+  background: #d97706;
+  color: #fefbf3;
 }
 
 .dark .p-badge.p-badge-info {
-  background: #0284c7 !important;
-  color: #e0f2fe !important;
+  background: #0284c7;
+  color: #e0f2fe;
 }
 
 /* Fix any remaining text color issues in dark mode */
@@ -221,8 +221,8 @@ body {
 
 /* Dialog mask/overlay */
 .p-dialog-mask {
-  background-color: rgba(0, 0, 0, 0.4) !important;
-  z-index: 999 !important;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 999;
 }
 
 /* Custom scrollbar */

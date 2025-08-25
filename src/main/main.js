@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readFile, writeFile } from 'node:fs/promises'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -85,7 +86,7 @@ app.on('window-all-closed', () => {
 ipcMain.handle('open-folder-dialog', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
-    title: 'Seleccionar Repositorio Git'
+    title: 'Seleccionar Repositorio Git',
   })
   return result
 })
@@ -93,13 +94,57 @@ ipcMain.handle('open-folder-dialog', async () => {
 ipcMain.handle('open-file-dialog', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile', 'multiSelections'],
-    title: 'Seleccionar Archivos'
+    title: 'Seleccionar Archivos',
   })
   return result
 })
 
+// Handler avanzado para diálogo de abrir archivo con opciones
+ipcMain.handle('open-file-dialog-advanced', async (_event, options = {}) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    title: options.title || 'Seleccionar Archivo',
+    filters: options.filters || [{ name: 'Todos los archivos', extensions: ['*'] }],
+    ...options,
+  })
+  return result
+})
+
+// Handler avanzado para diálogo de guardar archivo con opciones
+ipcMain.handle('save-file-dialog-advanced', async (_event, options = {}) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: options.title || 'Guardar Archivo',
+    defaultPath: options.defaultPath || 'document.txt',
+    filters: options.filters || [{ name: 'Todos los archivos', extensions: ['*'] }],
+    ...options,
+  })
+  return result
+})
+
+// Handler para leer archivo del disco
+ipcMain.handle('read-file', async (_event, filePath) => {
+  try {
+    const content = await readFile(filePath, 'utf8')
+    return { success: true, content }
+  } catch (error) {
+    console.error('Error reading file:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// Handler para escribir archivo al disco
+ipcMain.handle('write-file', async (_event, filePath, content) => {
+  try {
+    await writeFile(filePath, content, 'utf8')
+    return { success: true }
+  } catch (error) {
+    console.error('Error writing file:', error)
+    return { success: false, error: error.message }
+  }
+})
+
 // Handler para abrir carpeta en explorador
-ipcMain.handle('show-in-explorer', async (event, folderPath) => {
+ipcMain.handle('show-in-explorer', async (_event, folderPath) => {
   try {
     await shell.showItemInFolder(folderPath)
     return { success: true }
@@ -110,7 +155,7 @@ ipcMain.handle('show-in-explorer', async (event, folderPath) => {
 })
 
 // Handler para abrir URLs externas
-ipcMain.handle('open-external', async (event, url) => {
+ipcMain.handle('open-external', async (_event, url) => {
   try {
     await shell.openExternal(url)
     return { success: true }

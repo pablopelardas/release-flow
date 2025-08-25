@@ -170,7 +170,7 @@ const repositories = ref([
     status: 'active',
     currentBranch: 'main',
     lastTag: 'v1.0.0',
-    pendingCommits: 5
+    pendingCommits: 5,
   },
   {
     id: 2,
@@ -179,8 +179,8 @@ const repositories = ref([
     status: 'inactive',
     currentBranch: 'develop',
     lastTag: null,
-    pendingCommits: 12
-  }
+    pendingCommits: 12,
+  },
 ])
 
 const showAddDialog = ref(false)
@@ -189,10 +189,14 @@ const newRepoName = ref('')
 
 const getStatusSeverity = (status) => {
   switch (status) {
-    case 'active': return 'success'
-    case 'inactive': return 'warning'
-    case 'error': return 'danger'
-    default: return 'info'
+    case 'active':
+      return 'success'
+    case 'inactive':
+      return 'warning'
+    case 'error':
+      return 'danger'
+    default:
+      return 'info'
   }
 }
 
@@ -222,7 +226,7 @@ const selectFolder = async () => {
 
 const addRepository = () => {
   if (!newRepoPath.value) return
-  
+
   const newRepo = {
     id: Date.now(),
     name: newRepoName.value || newRepoPath.value.split('/').pop(),
@@ -230,11 +234,11 @@ const addRepository = () => {
     status: 'active',
     currentBranch: 'main',
     lastTag: null,
-    pendingCommits: 0
+    pendingCommits: 0,
   }
-  
+
   repositories.value.push(newRepo)
-  
+
   // Reset form
   newRepoPath.value = ''
   newRepoName.value = ''
@@ -262,15 +266,15 @@ const refreshRepository = async (repo) => {
   try {
     // Aquí podríamos llamar a window.electronAPI.gitStatus(repo.path)
     // y actualizar la información del repositorio
-    
+
     // Simulación de actualización
-    const repoIndex = repositories.value.findIndex(r => r.id === repo.id)
+    const repoIndex = repositories.value.findIndex((r) => r.id === repo.id)
     if (repoIndex > -1) {
       // Simulamos cambios aleatorios para demostrar
       repositories.value[repoIndex] = {
         ...repo,
         pendingCommits: Math.floor(Math.random() * 20),
-        status: Math.random() > 0.5 ? 'active' : 'inactive'
+        status: Math.random() > 0.5 ? 'active' : 'inactive',
       }
     }
   } catch (error) {
@@ -279,7 +283,7 @@ const refreshRepository = async (repo) => {
 }
 
 const removeRepository = (repo) => {
-  const index = repositories.value.findIndex(r => r.id === repo.id)
+  const index = repositories.value.findIndex((r) => r.id === repo.id)
   if (index > -1) {
     repositories.value.splice(index, 1)
   }

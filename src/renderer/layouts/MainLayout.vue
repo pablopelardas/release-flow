@@ -13,9 +13,13 @@
         <ul class="space-y-2 px-4">
           <li>
             <router-link
-              to="/"
-              class="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900 transition-colors"
-              active-class="bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
+              :to="{ path: '/' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/' 
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
             >
               <i class="pi pi-home mr-3"></i>
               Dashboard
@@ -23,9 +27,13 @@
           </li>
           <li>
             <router-link
-              to="/repositories"
-              class="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900 transition-colors"
-              active-class="bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
+              :to="{ path: '/repositories' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/repositories'
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
             >
               <i class="pi pi-folder mr-3"></i>
               Repositorios
@@ -33,9 +41,13 @@
           </li>
           <li>
             <router-link
-              to="/templates"
-              class="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900 transition-colors"
-              active-class="bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
+              :to="{ path: '/templates' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/templates'
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
             >
               <i class="pi pi-file-edit mr-3"></i>
               Templates
@@ -43,9 +55,13 @@
           </li>
           <li>
             <router-link
-              to="/releases"
-              class="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900 transition-colors"
-              active-class="bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
+              :to="{ path: '/releases' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/releases'
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
             >
               <i class="pi pi-send mr-3"></i>
               Releases
@@ -62,14 +78,14 @@
         <div class="flex items-center justify-between px-6 py-4">
           <div class="flex items-center space-x-4">
             <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">
-              {{ pageTitle }}
+              {{ _pageTitle }}
             </h2>
           </div>
           
           <div class="flex items-center space-x-4">
             <!-- Theme Toggle -->
             <button
-              @click="toggleTheme"
+              @click="_toggleTheme"
               class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <i :class="isDark ? 'pi pi-sun' : 'pi pi-moon'"></i>
@@ -98,17 +114,17 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const isDark = ref(false)
 
-const pageTitle = computed(() => {
+const _pageTitle = computed(() => {
   const titles = {
     '/': 'Dashboard',
     '/repositories': 'Gestión de Repositorios',
     '/templates': 'Editor de Templates',
-    '/releases': 'Generación de Releases'
+    '/releases': 'Generación de Releases',
   }
   return titles[route.path] || 'ReleaseFlow'
 })
 
-const toggleTheme = () => {
+const _toggleTheme = () => {
   isDark.value = !isDark.value
   if (isDark.value) {
     document.documentElement.classList.add('dark')
@@ -125,7 +141,7 @@ onMounted(() => {
   // Check for saved theme preference or default to light
   const savedTheme = localStorage.getItem('theme')
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  
+
   if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
     isDark.value = true
     document.documentElement.classList.add('dark')

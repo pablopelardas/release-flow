@@ -60,6 +60,9 @@ describe('Configuración de Electron', () => {
 
     // Verificar plugins básicos
     expect(viteContent).toContain('@vitejs/plugin-vue')
-    expect(viteContent).toContain('vite-plugin-electron')
+    // NOTE: No usamos vite-plugin-electron para evitar ventanas duplicadas
+    expect(viteContent).toContain('port: 5173')
+    expect(viteContent).toContain('resolve:')
+    expect(viteContent).toContain('alias:')
   })
 })

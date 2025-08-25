@@ -7,9 +7,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Operaciones de archivos
   openFile: () => ipcRenderer.invoke('open-file-dialog'),
+  openFileDialog: (options) => ipcRenderer.invoke('open-file-dialog-advanced', options),
   openFolder: () => ipcRenderer.invoke('open-folder-dialog'),
   saveFile: (content) => ipcRenderer.invoke('save-file-dialog', content),
-  
+  saveFileDialog: (options) => ipcRenderer.invoke('save-file-dialog-advanced', options),
+  readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
+  writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
+
   // Sistema
   showInExplorer: (path) => ipcRenderer.invoke('show-in-explorer', path),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

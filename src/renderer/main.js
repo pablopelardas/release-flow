@@ -1,6 +1,6 @@
 import { createPinia } from 'pinia'
-import { createApp } from 'vue'
 import PrimeVue from 'primevue/config'
+import { createApp } from 'vue'
 import './style.css' // TailwindCSS primero
 import 'primeicons/primeicons.css'
 import 'primevue/resources/themes/aura-light-green/theme.css'
