@@ -71,20 +71,30 @@
           <button 
             @click="openRepository(repo)" 
             class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm transition-colors"
+            title="Abrir en explorador"
           >
-            Abrir
+            <i class="pi pi-folder-open text-xs"></i>
+          </button>
+          <button 
+            @click="editRepository(repo)" 
+            class="flex-1 bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900 dark:hover:bg-yellow-800 text-yellow-700 dark:text-yellow-300 px-3 py-2 rounded text-sm transition-colors"
+            title="Editar repositorio"
+          >
+            <i class="pi pi-pencil text-xs"></i>
           </button>
           <button 
             @click="refreshRepository(repo)" 
             class="flex-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-3 py-2 rounded text-sm transition-colors"
+            title="Actualizar estado"
           >
-            Actualizar
+            <i class="pi pi-refresh text-xs"></i>
           </button>
           <button 
             @click="removeRepository(repo)" 
             class="flex-1 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm transition-colors"
+            title="Eliminar repositorio"
           >
-            Eliminar
+            <i class="pi pi-trash text-xs"></i>
           </button>
         </div>
         
@@ -416,6 +426,97 @@
         </div>
       </div>
     </div>
+    
+    <!-- Edit Repository Modal -->
+    <div v-if="showEditDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96 max-w-full">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Editar Repositorio
+        </h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Nombre
+            </label>
+            <input 
+              v-model="editRepoName" 
+              placeholder="Nombre del repositorio" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Ruta del Repositorio
+            </label>
+            <div class="flex space-x-2">
+              <input 
+                v-model="editRepoPath" 
+                placeholder="C:\proyectos\mi-repo" 
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                readonly
+              />
+              <button 
+                @click="selectEditRepoPath" 
+                class="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+              >
+                <i class="pi pi-folder"></i>
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Selecciona la carpeta raíz del repositorio Git
+            </p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Prefijo de Tags
+            </label>
+            <input 
+              v-model="editRepoTagPrefix" 
+              placeholder="ej: v, MiAppv, release-" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Los tags se crearán como: {{ editRepoTagPrefix || 'v' }}1.0.0
+            </p>
+          </div>
+          
+          <div>
+            <div class="flex items-center">
+              <input 
+                type="checkbox"
+                v-model="editRepoIsMain" 
+                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Repositorio Principal
+              </label>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
+              Los repositorios principales pueden tener repositorios secundarios asociados
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex space-x-3 mt-6">
+          <button 
+            @click="cancelEdit" 
+            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="saveEditRepository" 
+            :disabled="!editRepoName || !editRepoPath" 
+            class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors"
+          >
+            Guardar Cambios
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -452,6 +553,14 @@ const editCodebasePermalink = ref('')
 const editCodebaseEnvironment = ref('')
 const editCodebaseServers = ref('')
 const savingCodebase = ref(false)
+
+// Edit repository
+const showEditDialog = ref(false)
+const editingRepo = ref(null)
+const editRepoName = ref('')
+const editRepoPath = ref('')
+const editRepoTagPrefix = ref('')
+const editRepoIsMain = ref(false)
 
 // Computed properties
 const repositories = computed(() => repositoriesStore.repositories)
@@ -525,6 +634,69 @@ const removeRepository = async (repo) => {
     } catch (error) {
       console.error('Error removing repository:', error)
     }
+  }
+}
+
+const editRepository = (repo) => {
+  editingRepo.value = repo
+  editRepoName.value = repo.name
+  editRepoPath.value = repo.path
+  editRepoTagPrefix.value = repo.tag_prefix || ''
+  editRepoIsMain.value = repo.is_main_repository || false
+  showEditDialog.value = true
+}
+
+const cancelEdit = () => {
+  showEditDialog.value = false
+  editingRepo.value = null
+  editRepoName.value = ''
+  editRepoPath.value = ''
+  editRepoTagPrefix.value = ''
+  editRepoIsMain.value = false
+}
+
+const selectEditRepoPath = async () => {
+  try {
+    const result = await window.electronAPI.openFolder()
+    if (result.filePaths && result.filePaths.length > 0) {
+      editRepoPath.value = result.filePaths[0]
+    }
+  } catch (error) {
+    console.error('Error selecting folder:', error)
+  }
+}
+
+const saveEditRepository = async () => {
+  if (!editRepoName.value || !editRepoPath.value || !editingRepo.value) return
+  
+  try {
+    // Check if it's a valid Git repository (only if path changed)
+    if (editRepoPath.value !== editingRepo.value.path) {
+      const validationResult = await window.electronAPI.gitValidateRepository(editRepoPath.value)
+      if (!validationResult.success || !validationResult.data?.isValid) {
+        alert('La carpeta seleccionada no es un repositorio Git válido')
+        return
+      }
+    }
+    
+    const updates = {
+      name: editRepoName.value,
+      path: editRepoPath.value,
+      tag_prefix: editRepoTagPrefix.value,
+      is_main_repository: editRepoIsMain.value ? 1 : 0,
+    }
+    
+    await repositoriesStore.updateRepository(editingRepo.value.id, updates)
+    
+    // If changing from/to main repository, reload to update UI
+    if ((editingRepo.value.is_main_repository ? 1 : 0) !== updates.is_main_repository) {
+      await repositoriesStore.loadRepositories()
+    }
+    
+    cancelEdit()
+  } catch (error) {
+    console.error('Error updating repository:', error)
+    alert(`Error al actualizar el repositorio: ${error.message}`)
   }
 }
 
