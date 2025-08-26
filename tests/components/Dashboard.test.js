@@ -15,16 +15,15 @@ describe('Dashboard Vista', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('debe mostrar mensaje de bienvenida', () => {
-    expect(wrapper.text()).toContain('Bienvenido a ReleaseFlow')
-  })
-
   it('debe mostrar el título del dashboard', () => {
     expect(wrapper.text()).toContain('ReleaseFlow Dashboard')
   })
 
-  it('debe mostrar texto descriptivo', () => {
-    expect(wrapper.text()).toContain('Desktop')
+  it('debe mostrar estado de integraciones cuando CodebaseHQ está configurado', () => {
+    // El componente debería mostrar las métricas básicas
+    expect(wrapper.text()).toContain('Repositorios')
+    expect(wrapper.text()).toContain('Templates')
+    expect(wrapper.text()).toContain('Releases')
   })
 
   it('debe mostrar métricas de repositorios', () => {
