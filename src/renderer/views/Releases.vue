@@ -1001,26 +1001,39 @@ const generateSingleRepositoryPreview = async () => {
 }
 
 const cleanAutomaticGenerationText = (text) => {
-  return text
-    // Remove "Generado automáticamente por ReleaseFlow" at the end
+  let cleaned = text
+  
+  // Remove automatic generation footers
+  cleaned = cleaned
     .replace(/---\s*\n\s*Generado automáticamente por ReleaseFlow\s*$/gm, '')
     .replace(/---\s*\n\s*\*Generado automáticamente por ReleaseFlow\*\s*$/gm, '')
-    // Remove "Generated automatically by ReleaseFlow" at the end
     .replace(/---\s*\n\s*\*Generated automatically by ReleaseFlow\*\s*$/gm, '')
-    // Remove standalone "Generated automatically by ReleaseFlow" lines
     .replace(/^\s*Generado automáticamente por ReleaseFlow\s*$/gm, '')
     .replace(/^\s*\*Generated automatically by ReleaseFlow\*\s*$/gm, '')
-    // Clean up excessive empty lines after list items
+  
+  // Fix specific duplications found in the output
+  cleaned = cleaned
+    // Fix "Fecha de Lanzamiento:Fecha de Lanzamiento:" -> "Fecha de Lanzamiento:"
+    .replace(/Fecha de Lanzamiento:Fecha de Lanzamiento:/g, 'Fecha de Lanzamiento:')
+    // Fix "Tipo de Release:Tipo de Release:" -> "Tipo de Release:"
+    .replace(/Tipo de Release:Tipo de Release:/g, 'Tipo de Release:')
+    // Generic fix for any duplicated labels
+    .replace(/(\*\*[^:]*:)\1/g, '$1')
+  
+  // Clean up excessive whitespace and empty lines
+  cleaned = cleaned
+    // Remove excessive empty lines after list items
     .replace(/(\n- [^\n]+)\n\n+/g, '$1\n')
-    // Clean up multiple empty lines
+    // Remove excessive empty lines (more than 2)
     .replace(/\n\n\n+/g, '\n\n')
-    // Clean up excessive spaces between sections
-    .replace(/(\n## [^\n]+)\n\n+/g, '$1\n')
-    // Remove trailing separator if it's at the end
+    // Clean up multiple spaces
+    .replace(/  +/g, ' ')
+    // Remove trailing separator lines
     .replace(/---\s*$/gm, '')
-    // Clean trailing whitespace
+    // Clean trailing whitespace on lines
     .replace(/[ \t]+$/gm, '')
-    .trim()
+  
+  return cleaned.trim()
 }
 
 const convertMarkdownToHtml = (markdown) => {

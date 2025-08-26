@@ -289,17 +289,14 @@ export class DatabaseService {
    * Inserta templates predefinidos si la tabla está vacía
    */
   private seedTemplates(): void {
-    // Verificar si ya hay templates predefinidos
-    const predefinedCount = this.db.prepare('SELECT COUNT(*) as count FROM templates WHERE category = ?').get('predefined') as {
-      count: number
-    }
+    console.log(`[DB] Force seeding templates...`)
 
-    console.log(`[DB] Current predefined template count: ${predefinedCount.count}`)
-
-    // Siempre recrear templates predefinidos para obtener las últimas versiones
-    if (predefinedCount.count > 0) {
-      console.log(`[DB] Removing ${predefinedCount.count} existing predefined templates`)
-      this.db.prepare('DELETE FROM templates WHERE category = ?').run('predefined')
+    // FORZAR eliminación de templates predefinidos para obtener siempre las últimas versiones
+    try {
+      const deleteResult = this.db.prepare('DELETE FROM templates WHERE category = ?').run('predefined')
+      console.log(`[DB] Deleted ${deleteResult.changes} predefined templates`)
+    } catch (error) {
+      console.warn(`[DB] Error deleting predefined templates:`, error)
     }
 
     // Insertar templates predefinidos
