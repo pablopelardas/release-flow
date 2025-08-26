@@ -1014,6 +1014,8 @@ const cleanAutomaticGenerationText = (text) => {
     .replace(/(\n- [^\n]+)\n\n+/g, '$1\n')
     // Clean up multiple empty lines
     .replace(/\n\n\n+/g, '\n\n')
+    // Clean up excessive spaces between sections
+    .replace(/(\n## [^\n]+)\n\n+/g, '$1\n')
     // Remove trailing separator if it's at the end
     .replace(/---\s*$/gm, '')
     // Clean trailing whitespace

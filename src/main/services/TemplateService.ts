@@ -64,16 +64,35 @@ export class TemplateService {
    */
   private registerCustomFilters(): void {
     // Filtro para formatear fechas
-    this.liquid.registerFilter('formatDate', (date: string | Date, format = 'YYYY-MM-DD') => {
+    this.liquid.registerFilter('formatDate', (date: string | Date, format = '%d de %B de %Y') => {
       if (!date) return ''
       const dateObj = typeof date === 'string' ? new Date(date) : date
 
-      // Formateo básico - en producción usar librería como date-fns
-      const year = dateObj.getFullYear()
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0')
-      const day = String(dateObj.getDate()).padStart(2, '0')
+      const months = [
+        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+      ]
 
-      return format.replace('YYYY', year.toString()).replace('MM', month).replace('DD', day)
+      const year = dateObj.getFullYear()
+      const month = dateObj.getMonth()
+      const day = dateObj.getDate()
+      
+      // Formato por defecto en español
+      if (format === '%d de %B de %Y') {
+        return `${day} de ${months[month]} de ${year}`
+      }
+
+      // Formateo básico para otros formatos
+      const monthPadded = String(month + 1).padStart(2, '0')
+      const dayPadded = String(day).padStart(2, '0')
+
+      return format
+        .replace('YYYY', year.toString())
+        .replace('MM', monthPadded)
+        .replace('DD', dayPadded)
+        .replace('%Y', year.toString())
+        .replace('%m', monthPadded)
+        .replace('%d', dayPadded.toString())
     })
 
     // Filtro para capitalizar texto

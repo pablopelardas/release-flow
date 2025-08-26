@@ -75,6 +75,41 @@ export interface CreateVersionRequest {
   released?: boolean
 }
 
+export interface ADFNode {
+  type: string
+  attrs?: Record<string, unknown>
+  content?: ADFNode[]
+  text?: string
+  marks?: Array<{ type: string }>
+}
+
+export interface ADFDocument {
+  type: 'doc'
+  version: number
+  content: ADFNode[]
+}
+
+export interface CommentResult {
+  total: number
+  successes: number
+  results: Array<{
+    issueKey: string
+    success: boolean
+    error?: string
+  }>
+}
+
+export interface FixVersionResult {
+  total: number
+  successes: number
+  failures: number
+  results: Array<{
+    issueKey: string
+    success: boolean
+    error?: string
+  }>
+}
+
 export class JiraService {
   private config: JiraConfig | null = null
   private dbService: DatabaseService
@@ -596,7 +631,10 @@ export class JiraService {
   /**
    * Asocia issues a una versión específica
    */
-  async addIssuesFixVersion(issueKeys: string[], versionId: string): Promise<JiraResult> {
+  async addIssuesFixVersion(
+    issueKeys: string[],
+    versionId: string
+  ): Promise<JiraResult<FixVersionResult>> {
     if (!this.config || !this.config.enabled) {
       return {
         success: false,
@@ -637,7 +675,7 @@ export class JiraService {
           successes: successes.length,
           failures: failures.length,
           results,
-        },
+        } as FixVersionResult,
       }
     } catch (error) {
       console.error('❌ Error adding fix versions:', error)
@@ -651,8 +689,8 @@ export class JiraService {
   /**
    * Convierte markdown a formato ADF (Atlassian Document Format)
    */
-  private convertMarkdownToADF(markdown: string): unknown {
-    const content: unknown[] = []
+  private convertMarkdownToADF(markdown: string): ADFDocument {
+    const content: ADFNode[] = []
     const lines = markdown.split('\n')
 
     for (let i = 0; i < lines.length; i++) {
@@ -791,8 +829,8 @@ export class JiraService {
   /**
    * Parsea formato inline como **bold**, *italic*, `code`, etc.
    */
-  private parseInlineFormatting(text: string): unknown[] {
-    const content: unknown[] = []
+  private parseInlineFormatting(text: string): ADFNode[] {
+    const content: ADFNode[] = []
     let currentPos = 0
 
     // Patrón para detectar formato inline
@@ -889,7 +927,10 @@ export class JiraService {
   /**
    * Agrega comentario a múltiples issues
    */
-  async addCommentToIssues(issueKeys: string[], comment: string): Promise<JiraResult<unknown>> {
+  async addCommentToIssues(
+    issueKeys: string[],
+    comment: string
+  ): Promise<JiraResult<CommentResult>> {
     console.log(`💬 Adding comment to ${issueKeys.length} issues`)
 
     if (!this.config || !this.config.enabled) {
@@ -938,7 +979,7 @@ export class JiraService {
           total: issueKeys.length,
           successes: successes.length,
           results,
-        },
+        } as CommentResult,
       }
     } catch (error) {
       console.error('❌ Error adding comments:', error)
@@ -1024,12 +1065,12 @@ export class JiraService {
         const associationResult = await this.addIssuesFixVersion(issueKeys, version.id)
 
         if (associationResult.success) {
-          associatedCount = (associationResult.data as { successes: number }).successes
+          associatedCount = (associationResult.data as FixVersionResult)?.successes || 0
 
           // 4. Agregar release notes como comentarios a los issues (si hay release notes)
           if (releaseNotes?.trim()) {
             console.log('💬 Adding release notes as comments to issues...')
-            const releaseNotesComment = `🚀 **Release Notes - ${version.name}**\n\n${releaseNotes}`
+            const releaseNotesComment = releaseNotes
 
             const commentResult = await this.addCommentToIssues(issueKeys, releaseNotesComment)
             if (commentResult.success) {

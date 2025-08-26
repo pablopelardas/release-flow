@@ -289,15 +289,20 @@ export class DatabaseService {
    * Inserta templates predefinidos si la tabla está vacía
    */
   private seedTemplates(): void {
-    // Verificar si ya hay templates
-    const templateCount = this.db.prepare('SELECT COUNT(*) as count FROM templates').get() as {
+    // Verificar si ya hay templates predefinidos
+    const predefinedCount = this.db.prepare('SELECT COUNT(*) as count FROM templates WHERE category = ?').get('predefined') as {
       count: number
     }
 
-    console.log(`[DB] Current template count: ${templateCount.count}`)
+    console.log(`[DB] Current predefined template count: ${predefinedCount.count}`)
 
-    if (templateCount.count === 0) {
-      // Insertar templates predefinidos
+    // Siempre recrear templates predefinidos para obtener las últimas versiones
+    if (predefinedCount.count > 0) {
+      console.log(`[DB] Removing ${predefinedCount.count} existing predefined templates`)
+      this.db.prepare('DELETE FROM templates WHERE category = ?').run('predefined')
+    }
+
+    // Insertar templates predefinidos
       const insertTemplate = this.db.prepare(
         'INSERT INTO templates (name, description, content, category) VALUES (?, ?, ?, ?)'
       )
@@ -308,7 +313,7 @@ export class DatabaseService {
           description: 'Template formal para release notes',
           category: 'predefined',
           content: `# Release Notes v{{ version }}
-**Fecha de Lanzamiento:** {{ date | formatDate: "%d de %B de %Y" }}
+**Fecha de Lanzamiento:** {{ date | formatDate }}
 **Tipo de Release:** {{ type }}
 
 {% assign has_feat = false %}
@@ -316,7 +321,6 @@ export class DatabaseService {
 {% assign has_docs = false %}
 {% assign has_chore = false %}
 {% assign has_other = false %}
-
 {% for commit in commits %}
   {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
   {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
@@ -324,27 +328,31 @@ export class DatabaseService {
   {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
   {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign has_other = true %}{% endunless %}
 {% endfor %}
-
 {% if has_feat %}
 ## 🚀 Nuevas Características
 {% for commit in commits %}{% if commit.type == "feat" %}- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}{% endfor %}{% endif %}
+{% endif %}{% endfor %}
+{% endif %}
 {% if has_fix %}
 ## 🐛 Correcciones
 {% for commit in commits %}{% if commit.type == "fix" %}- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}{% endfor %}{% endif %}
+{% endif %}{% endfor %}
+{% endif %}
 {% if has_docs %}
 ## 📝 Documentación
 {% for commit in commits %}{% if commit.type == "docs" %}- {{ commit.subject }}
-{% endif %}{% endfor %}{% endif %}
+{% endif %}{% endfor %}
+{% endif %}
 {% if has_chore %}
 ## 🔧 Mantenimiento
 {% for commit in commits %}{% if commit.type == "chore" %}- {{ commit.subject }}
-{% endif %}{% endfor %}{% endif %}
+{% endif %}{% endfor %}
+{% endif %}
 {% if has_other %}
 ## 📝 Otros Cambios
 {% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}- {{ commit.subject }}
-{% endunless %}{% endfor %}{% endif %}`,
+{% endunless %}{% endfor %}
+{% endif %}`,
         },
         {
           name: 'Changelog Simple',
@@ -481,7 +489,6 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
       console.log(`[DB] Seeding ${predefinedTemplates.length} predefined templates`)
       insertManyTemplates(predefinedTemplates)
       console.log(`[DB] Templates seeded successfully`)
-    }
   }
 
   // ===== OPERACIONES DE REPOSITORIOS =====
