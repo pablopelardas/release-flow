@@ -34,14 +34,20 @@
     </div>
 
     <!-- Integrations Status Card -->
-    <div v-if="settingsStore.isCodebaseConfigured" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+    <div v-if="settingsStore.isCodebaseConfigured || settingsStore.isTeamsConfigured" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
           Estado de Integraciones
         </h2>
-        <div class="flex items-center space-x-2">
-          <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-          <span class="text-sm text-green-600 dark:text-green-400">CodebaseHQ Conectado</span>
+        <div class="flex items-center space-x-4">
+          <div v-if="settingsStore.isCodebaseConfigured" class="flex items-center space-x-2">
+            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+            <span class="text-sm text-green-600 dark:text-green-400">CodebaseHQ</span>
+          </div>
+          <div v-if="settingsStore.isTeamsConfigured" class="flex items-center space-x-2">
+            <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+            <span class="text-sm text-blue-600 dark:text-blue-400">Teams</span>
+          </div>
         </div>
       </div>
 

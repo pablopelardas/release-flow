@@ -65,6 +65,13 @@
               <i class="pi pi-tag text-xs mr-1"></i>{{ repo.last_tag }}
             </span>
           </div>
+          
+          <div v-if="repo.url" class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-gray-400">URL:</span>
+            <span class="text-sm text-purple-600 dark:text-purple-400 truncate max-w-[150px]" :title="repo.url">
+              <i class="pi pi-link text-xs mr-1"></i>Configurada
+            </span>
+          </div>
         </div>
         
         <div class="flex space-x-2 mt-4">
@@ -74,6 +81,14 @@
             title="Abrir en explorador"
           >
             <i class="pi pi-folder-open text-xs"></i>
+          </button>
+          <button 
+            v-if="repo.url"
+            @click="openRepositoryUrl(repo)" 
+            class="flex-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 py-2 rounded text-sm transition-colors"
+            title="Ver en CodebaseHQ"
+          >
+            <i class="pi pi-external-link text-xs"></i>
           </button>
           <button 
             @click="editRepository(repo)" 
@@ -171,6 +186,20 @@
               placeholder="Nombre personalizado..." 
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              URL del repositorio (opcional)
+            </label>
+            <input 
+              v-model="newRepoUrl" 
+              placeholder="https://github.com/usuario/repositorio o https://your-company.codebasehq.com/projects/project-name/repositories/repo-name" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              URL para acceder al repositorio en GitHub, GitLab, CodebaseHQ u otro servicio
+            </p>
           </div>
           
           <div>
@@ -484,6 +513,20 @@
           </div>
           
           <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              URL del Repositorio
+            </label>
+            <input 
+              v-model="editRepoUrl" 
+              placeholder="https://codebasehq.com/tu-cuenta/tu-proyecto/repositories/tu-repo" 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              URL para ver el repositorio (se usará en notificaciones de Teams)
+            </p>
+          </div>
+          
+          <div>
             <div class="flex items-center">
               <input 
                 type="checkbox"
@@ -532,6 +575,7 @@ const settingsStore = useSettingsStore()
 const showAddDialog = ref(false)
 const newRepoPath = ref('')
 const newRepoName = ref('')
+const newRepoUrl = ref('')
 const newRepoTagPrefix = ref('')
 const newRepoIsMain = ref(false)
 const newRepoCodebaseEnabled = ref(false)
@@ -560,6 +604,7 @@ const editingRepo = ref(null)
 const editRepoName = ref('')
 const editRepoPath = ref('')
 const editRepoTagPrefix = ref('')
+const editRepoUrl = ref('')
 const editRepoIsMain = ref(false)
 
 // Computed properties
@@ -586,6 +631,7 @@ const addRepository = async () => {
     const repoData = {
       name: newRepoName.value || newRepoPath.value.split(/[/\\]/).pop(),
       path: newRepoPath.value,
+      url: newRepoUrl.value || '',
       tag_prefix: newRepoTagPrefix.value || '',
       is_main_repository: newRepoIsMain.value,
       codebase_enabled: newRepoCodebaseEnabled.value,
@@ -599,6 +645,7 @@ const addRepository = async () => {
     // Reset form solo si fue exitoso
     newRepoPath.value = ''
     newRepoName.value = ''
+    newRepoUrl.value = ''
     newRepoTagPrefix.value = ''
     newRepoIsMain.value = false
     newRepoCodebaseEnabled.value = false
@@ -616,6 +663,17 @@ const openRepository = async (repo) => {
     await repositoriesStore.openRepositoryInExplorer(repo.path)
   } catch (error) {
     console.error('Error opening repository:', error)
+  }
+}
+
+const openRepositoryUrl = async (repo) => {
+  try {
+    if (repo.url) {
+      await window.electronAPI.openExternal(repo.url)
+    }
+  } catch (error) {
+    console.error('Error opening repository URL:', error)
+    alert(`Error abriendo URL: ${error.message}`)
   }
 }
 
@@ -645,6 +703,7 @@ const editRepository = (repo) => {
   editRepoName.value = repo.name
   editRepoPath.value = repo.path
   editRepoTagPrefix.value = repo.tag_prefix || ''
+  editRepoUrl.value = repo.url || ''
   
   // Convert to boolean properly - handle both 0/1 and true/false
   // SQLite returns integers, so 1 = true, 0 = false
@@ -661,6 +720,7 @@ const cancelEdit = () => {
   editRepoName.value = ''
   editRepoPath.value = ''
   editRepoTagPrefix.value = ''
+  editRepoUrl.value = ''
   editRepoIsMain.value = false
 }
 
@@ -692,6 +752,7 @@ const saveEditRepository = async () => {
       name: editRepoName.value,
       path: editRepoPath.value,
       tag_prefix: editRepoTagPrefix.value,
+      url: editRepoUrl.value,
       is_main_repository: editRepoIsMain.value ? 1 : 0,
     }
     

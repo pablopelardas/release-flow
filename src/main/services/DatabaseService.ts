@@ -32,6 +32,7 @@ export interface Release {
   tag_name: string
   release_notes?: string
   commit_count: number
+  collaborators?: string // JSON string with array of collaborator names
   created_at: string
 }
 
@@ -156,6 +157,7 @@ export class DatabaseService {
         tag_name TEXT NOT NULL,
         release_notes TEXT,
         commit_count INTEGER DEFAULT 0,
+        collaborators TEXT, -- JSON array of collaborator names
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE,
         UNIQUE(repository_id, version)
@@ -668,8 +670,8 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   async insertRelease(releaseData: Partial<Release>): Promise<DatabaseResult<{ id: number }>> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO releases (repository_id, version, tag_name, release_notes, commit_count)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO releases (repository_id, version, tag_name, release_notes, commit_count, collaborators)
+        VALUES (?, ?, ?, ?, ?, ?)
       `)
 
       const result = stmt.run(
@@ -677,7 +679,8 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         releaseData.version,
         releaseData.tag_name,
         releaseData.release_notes || null,
-        releaseData.commit_count || 0
+        releaseData.commit_count || 0,
+        releaseData.collaborators || null
       )
 
       // Insertar en historial
@@ -1146,6 +1149,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
    */
   async insertReleaseData(releaseData: {
     version: string
+    tag_name?: string
     repository: string
     repositoryPath: string
     template: string
@@ -1154,6 +1158,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
     content: string
     releaseType: string
     baseVersion: string
+    collaborators?: string[]
   }): Promise<DatabaseResult<{ id: number }>> {
     try {
       // Primero, obtener el repository_id por el nombre
@@ -1169,19 +1174,25 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 
       // Insertar o reemplazar el release (en caso de que ya existe)
       const stmt = this.db.prepare(`
-        INSERT OR REPLACE INTO releases (repository_id, version, tag_name, release_notes, commit_count)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO releases (repository_id, version, tag_name, release_notes, commit_count, collaborators)
+        VALUES (?, ?, ?, ?, ?, ?)
       `)
 
       // Contar commits en el contenido (aproximación)
       const commitCount = (releaseData.content.match(/- /g) || []).length
 
+      // Serializar colaboradores a JSON
+      const collaboratorsJson = releaseData.collaborators
+        ? JSON.stringify(releaseData.collaborators)
+        : null
+
       const result = stmt.run(
         repo.id,
         releaseData.version,
-        releaseData.version, // usar version como tag_name
+        releaseData.tag_name || releaseData.version, // usar tag_name si existe, sino version
         releaseData.content,
-        commitCount
+        commitCount,
+        collaboratorsJson
       )
 
       // Determinar si fue inserción o actualización basado en si hubo cambios
@@ -1223,11 +1234,13 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
       Array<{
         id: number
         version: string
+        tag_name: string
         repository: string
         template: string
         date: string
         content: string
         created_at: string
+        collaborators: string[]
       }>
     >
   > {
@@ -1239,6 +1252,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
           repo.name as repository,
           r.tag_name,
           r.release_notes as content,
+          r.collaborators,
           r.created_at,
           'Unknown' as template
         FROM releases r
@@ -1252,6 +1266,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         repository: string
         tag_name: string
         content: string
+        collaborators: string | null
         created_at: string
         template: string
       }>
@@ -1261,11 +1276,13 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         data: releases.map((release) => ({
           id: release.id,
           version: release.version,
+          tag_name: release.tag_name,
           repository: release.repository,
           template: release.template,
           date: release.created_at,
           content: release.content || '',
           created_at: release.created_at,
+          collaborators: release.collaborators ? JSON.parse(release.collaborators) : [],
         })),
       }
     } catch (error) {

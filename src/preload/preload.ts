@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('git-get-commits-since-last-tag', repoPath),
   gitGetCommitsForReleaseType: (repoPath, currentVersion, releaseType) =>
     ipcRenderer.invoke('git-get-commits-for-release-type', repoPath, currentVersion, releaseType),
+  gitExtractCollaborators: (commits) => ipcRenderer.invoke('git-extract-collaborators', commits),
 
   // Template engine
   templateRender: (templateContent, data) =>
@@ -107,6 +108,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   codebaseValidateConfig: (config) => ipcRenderer.invoke('codebase-validate-config', config),
   codebaseGetDeployments: (config) => ipcRenderer.invoke('codebase-get-deployments', config),
   codebaseGetActivity: (config, page) => ipcRenderer.invoke('codebase-get-activity', config, page),
+
+  // Teams
+  teamsSendReleaseNotification: (config, notification) =>
+    ipcRenderer.invoke('teams-send-release-notification', config, notification),
+  teamsTestConnection: (config) => ipcRenderer.invoke('teams-test-connection', config),
+  teamsValidateConfig: (config) => ipcRenderer.invoke('teams-validate-config', config),
 
   // JIRA
   jiraTestConnection: () => ipcRenderer.invoke('jira-test-connection'),

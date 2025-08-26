@@ -716,6 +716,25 @@ export class GitService {
   }
 
   /**
+   * Extrae colaboradores únicos de una lista de commits
+   */
+  extractCollaborators(commits: GitCommit[]): string[] {
+    const authors = new Set<string>()
+
+    commits.forEach((commit) => {
+      if (commit.author && commit.author !== 'Unknown' && commit.author.trim()) {
+        // Normalizar nombres de autores (algunos pueden venir con formato "Name <email>")
+        const cleanAuthor = commit.author.replace(/<[^>]*>/g, '').trim()
+        if (cleanAuthor) {
+          authors.add(cleanAuthor)
+        }
+      }
+    })
+
+    return Array.from(authors).sort()
+  }
+
+  /**
    * Obtiene diferencias entre dos referencias (tags, commits, etc.)
    */
   async getDiff(repoPath: string, from: string, to: string): Promise<string> {

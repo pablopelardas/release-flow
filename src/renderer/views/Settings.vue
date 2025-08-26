@@ -137,6 +137,81 @@
       </div>
     </div>
 
+    <!-- Microsoft Teams Configuration Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div class="flex items-center mb-4">
+        <i class="pi pi-microsoft text-blue-500 mr-2"></i>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Microsoft Teams</h2>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="flex items-center">
+          <input 
+            type="checkbox"
+            v-model="teamsEnabled" 
+            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+          />
+          <label class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Habilitar notificaciones de release a Teams (Power Automate)
+          </label>
+        </div>
+        
+        <div v-if="teamsEnabled" class="space-y-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Power Automate Workflow URL <span class="text-red-500">*</span>
+            </label>
+            <input 
+              v-model="teamsWebhookUrl" 
+              type="url"
+              placeholder="https://prod-01.brazilsouth.logic.azure.com:443/workflows/..." 
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              URL del workflow de Power Automate para enviar notificaciones de releases a Teams
+            </p>
+          </div>
+          
+          <div class="flex items-center space-x-4">
+            <button 
+              @click="testTeamsConnection"
+              :disabled="testingTeamsConnection || !teamsWebhookUrl"
+              class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+            >
+              <i :class="testingTeamsConnection ? 'pi pi-spin pi-spinner' : 'pi pi-send'"></i>
+              <span>{{ testingTeamsConnection ? 'Probando...' : 'Probar Conexión' }}</span>
+            </button>
+            
+            <span v-if="teamsConnectionStatus === 'success'" class="text-green-600 dark:text-green-400 text-sm flex items-center">
+              <i class="pi pi-check-circle mr-1"></i>
+              Conexión exitosa
+            </span>
+            <span v-else-if="teamsConnectionStatus === 'error'" class="text-red-600 dark:text-red-400 text-sm flex items-center">
+              <i class="pi pi-times-circle mr-1"></i>
+              Error de conexión
+            </span>
+          </div>
+          
+          <div v-if="teamsConnectionError" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p class="text-red-700 dark:text-red-300 text-sm">
+              {{ teamsConnectionError }}
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex justify-end">
+          <button 
+            @click="saveSettings"
+            :disabled="saving"
+            class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <i :class="saving ? 'pi pi-spin pi-spinner' : 'pi pi-save'"></i>
+            <span>{{ saving ? 'Guardando...' : 'Guardar Configuración' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- JIRA Configuration Section -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
       <div class="flex items-center mb-4">
@@ -285,6 +360,13 @@ const projectPermalink = ref('Clever')
 const username = ref('')
 const apiKey = ref('')
 const showApiKey = ref(false)
+
+// Teams configuration
+const teamsEnabled = ref(false)
+const teamsWebhookUrl = ref('')
+const testingTeamsConnection = ref(false)
+const teamsConnectionStatus = ref('')
+const teamsConnectionError = ref('')
 const testing = ref(false)
 const saving = ref(false)
 const connectionStatus = ref(null) // 'success', 'error', null
@@ -315,7 +397,9 @@ const loadSettings = async () => {
       'jira_base_url',
       'jira_username',
       'jira_api_token',
-      'jira_project_key'
+      'jira_project_key',
+      'teams_enabled',
+      'teams_webhook_url'
     ]
     
     for (const key of settings) {
@@ -353,6 +437,12 @@ const loadSettings = async () => {
             break
           case 'jira_project_key':
             jiraProjectKey.value = value || 'PROJ'
+            break
+          case 'teams_enabled':
+            teamsEnabled.value = value === 'true' || value === true
+            break
+          case 'teams_webhook_url':
+            teamsWebhookUrl.value = value || ''
             break
         }
       }
@@ -392,6 +482,37 @@ const testConnection = async () => {
     connectionError.value = error.message
   } finally {
     testing.value = false
+  }
+}
+
+// Test Teams connection
+const testTeamsConnection = async () => {
+  if (!teamsWebhookUrl.value) return
+  
+  testingTeamsConnection.value = true
+  teamsConnectionStatus.value = null
+  teamsConnectionError.value = ''
+  
+  try {
+    const config = {
+      webhookUrl: teamsWebhookUrl.value,
+      enabled: true
+    }
+    
+    const result = await window.electronAPI.teamsTestConnection(config)
+    
+    if (result.success) {
+      teamsConnectionStatus.value = 'success'
+    } else {
+      teamsConnectionStatus.value = 'error'
+      teamsConnectionError.value = result.error || 'Error desconocido'
+    }
+  } catch (error) {
+    console.error('Error testing Teams connection:', error)
+    teamsConnectionStatus.value = 'error'
+    teamsConnectionError.value = 'Error de conexión'
+  } finally {
+    testingTeamsConnection.value = false
   }
 }
 
@@ -442,7 +563,9 @@ const saveSettings = async () => {
       { key: 'jira_base_url', value: jiraBaseUrl.value },
       { key: 'jira_username', value: jiraUsername.value },
       { key: 'jira_api_token', value: jiraApiToken.value },
-      { key: 'jira_project_key', value: jiraProjectKey.value }
+      { key: 'jira_project_key', value: jiraProjectKey.value },
+      { key: 'teams_enabled', value: teamsEnabled.value ? 'true' : 'false' },
+      { key: 'teams_webhook_url', value: teamsWebhookUrl.value }
     ]
     
     for (const setting of settings) {

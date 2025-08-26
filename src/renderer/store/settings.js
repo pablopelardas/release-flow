@@ -42,6 +42,12 @@ export const useSettingsStore = defineStore('settings', {
       projectPermalink: null,
     },
 
+    // Microsoft Teams configuration cache
+    teamsConfig: {
+      webhookUrl: null,
+      enabled: false,
+    },
+
     loading: false,
     error: null,
     unsavedChanges: false,
@@ -58,6 +64,19 @@ export const useSettingsStore = defineStore('settings', {
         state.codebaseConfig.username &&
         state.codebaseConfig.apiKey
       )
+    },
+
+    // Check if Microsoft Teams is configured and enabled
+    isTeamsConfigured: (state) => {
+      return !!(state.teamsConfig.webhookUrl && state.teamsConfig.enabled)
+    },
+
+    // Get count of active integrations
+    activeIntegrationsCount: (state) => {
+      let count = 0
+      if (state.isCodebaseConfigured) count++
+      if (state.isTeamsConfigured) count++
+      return count
     },
 
     getSettingValue: (state) => (key) => {
@@ -91,8 +110,9 @@ export const useSettingsStore = defineStore('settings', {
           this.settings = { ...this.settings, ...dbSettings }
         }
 
-        // Also load CodebaseHQ configuration
+        // Also load integrations configuration
         await this.loadCodebaseConfig()
+        await this.loadTeamsConfig()
       } catch (error) {
         console.error('Error loading settings:', error)
         // No es crítico si no se pueden cargar las configuraciones
@@ -121,6 +141,26 @@ export const useSettingsStore = defineStore('settings', {
         console.log('[Settings] CodebaseHQ configured:', this.isCodebaseConfigured)
       } catch (error) {
         console.error('Error loading CodebaseHQ config:', error)
+      }
+    },
+
+    async loadTeamsConfig() {
+      try {
+        const [webhookUrl, enabled] = await Promise.all([
+          window.electronAPI.dbGetConfig('teams_webhook_url'),
+          window.electronAPI.dbGetConfig('teams_enabled'),
+        ])
+
+        this.teamsConfig = {
+          webhookUrl: webhookUrl?.success ? webhookUrl.data?.value : null,
+          enabled: enabled?.success
+            ? enabled.data?.value === 'true' || enabled.data?.value === true
+            : false,
+        }
+
+        console.log('[Settings] Microsoft Teams configured:', this.isTeamsConfigured)
+      } catch (error) {
+        console.error('Error loading Teams config:', error)
       }
     },
 

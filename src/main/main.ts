@@ -8,6 +8,7 @@ import { DatabaseService } from './services/DatabaseService.js'
 import { GitService } from './services/GitService.js'
 import { JiraService } from './services/JiraService.js'
 import { ReleaseService } from './services/ReleaseService.js'
+import { TeamsService } from './services/TeamsService.js'
 import { TemplateService } from './services/TemplateService.js'
 
 // Para ES modules
@@ -26,6 +27,7 @@ let templateService: TemplateService | null = null
 let releaseService: ReleaseService | null = null
 let databaseService: DatabaseService | null = null
 let codebaseHQService: CodebaseHQService | null = null
+let teamsService: TeamsService | null = null
 let jiraService: JiraService | null = null
 
 function createWindow() {
@@ -214,6 +216,8 @@ async function initializeServices() {
 
     // Inicializar CodebaseHQService
     codebaseHQService = new CodebaseHQService()
+    // Inicializar TeamsService
+    teamsService = new TeamsService()
 
     // Inicializar JiraService
     jiraService = new JiraService(databaseService)
@@ -357,6 +361,17 @@ ipcMain.handle(
     }
   }
 )
+
+ipcMain.handle('git-extract-collaborators', async (_event, commits) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const collaborators = gitService.extractCollaborators(commits)
+    return { success: true, data: collaborators }
+  } catch (error) {
+    console.error('Error en git-extract-collaborators:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
 
 ipcMain.handle('git-push-tags', async (_event, repoPath, remote = 'origin') => {
   try {
@@ -768,6 +783,40 @@ ipcMain.handle('codebase-get-activity', async (_event, config, page) => {
     return result
   } catch (error) {
     console.error('Error en codebase-get-activity:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+// Teams Service Handlers
+ipcMain.handle('teams-send-release-notification', async (_event, config, notification) => {
+  try {
+    if (!teamsService) throw new Error('TeamsService no inicializado')
+    const result = await teamsService.sendReleaseNotification(config, notification)
+    return result
+  } catch (error) {
+    console.error('Error en teams-send-release-notification:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('teams-test-connection', async (_event, config) => {
+  try {
+    if (!teamsService) throw new Error('TeamsService no inicializado')
+    const result = await teamsService.testConnection(config)
+    return result
+  } catch (error) {
+    console.error('Error en teams-test-connection:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('teams-validate-config', async (_event, config) => {
+  try {
+    if (!teamsService) throw new Error('TeamsService no inicializado')
+    const result = teamsService.validateConfig(config)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en teams-validate-config:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })

@@ -425,6 +425,14 @@
                     Crear release en JIRA
                   </label>
                 </div>
+
+                <div v-if="integrationsStatus.teams.enabled" class="flex items-center">
+                  <Checkbox v-model="sendTeamsNotification" :binary="true" />
+                  <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    <i class="pi pi-microsoft mr-1 text-blue-500"></i>
+                    Enviar notificación a Teams
+                  </label>
+                </div>
                 
                 <div class="flex items-center">
                   <Checkbox v-model="saveToFile" :binary="true" />
@@ -506,10 +514,13 @@
                 </div>
                 <div>
                   <p class="font-medium text-gray-900 dark:text-white">
-                    {{ release.version }} - {{ release.repository }}
+                    {{ release.tag_name || `v${release.version}` }} - {{ release.repository }}
                   </p>
                   <p class="text-sm text-gray-600 dark:text-gray-400">
-                    {{ new Date(release.date).toLocaleDateString('es-ES') }} • {{ release.template }}
+                    {{ new Date(release.date).toLocaleDateString('es-ES') }}
+                    <span v-if="release.collaborators && release.collaborators.length > 0" class="ml-2">
+                      • 👥 {{ release.collaborators.join(', ') }}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -519,20 +530,14 @@
                   icon="pi pi-eye" 
                   size="small" 
                   text
+                  v-tooltip.top="'Ver detalles del release'"
                 />
                 <Button 
                   @click="downloadRelease(release)" 
                   icon="pi pi-download" 
                   size="small" 
                   text
-                />
-                <Button 
-                  @click="deployToCodebaseHQ(release)" 
-                  icon="pi pi-cloud-upload" 
-                  size="small" 
-                  text
-                  class="text-purple-600 hover:text-purple-700"
-                  v-tooltip.top="'Deploy to CodebaseHQ'"
+                  v-tooltip.top="'Descargar release notes'"
                 />
               </div>
             </div>
@@ -552,7 +557,7 @@ import Card from 'primevue/card'
 import ProgressBar from 'primevue/progressbar'
 import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
-import { useRepositoriesStore, useTemplatesStore, useReleasesStore } from '../store'
+import { useRepositoriesStore, useTemplatesStore, useReleasesStore, useSettingsStore } from '../store'
 
 const router = useRouter()
 const toast = useToast()
@@ -575,6 +580,7 @@ const enhanceJiraError = (error) => {
 const repositoriesStore = useRepositoriesStore()
 const templatesStore = useTemplatesStore()
 const releasesStore = useReleasesStore()
+const settingsStore = useSettingsStore()
 
 // Wizard State
 const showWizard = ref(false)
@@ -621,6 +627,7 @@ const pushTags = ref(true) // Default enabled
 const saveToFile = ref(false) // Default disabled
 const createCodebaseDeployment = ref(true) // Default enabled
 const createJiraRelease = ref(false) // Will be set based on JIRA enabled status
+const sendTeamsNotification = ref(false) // Will be set based on Teams enabled status
 
 // Recent releases - usar store real
 const recentReleases = computed(() => releasesStore.releases)
@@ -631,7 +638,8 @@ const secondaryReposInfo = ref('')
 // Estado de integraciones
 const integrationsStatus = ref({
   codebase: { enabled: false, status: 'unknown' },
-  jira: { enabled: false, status: 'unknown' }
+  jira: { enabled: false, status: 'unknown' },
+  teams: { enabled: false, status: 'unknown' }
 })
 
 // Validación del repositorio
@@ -712,6 +720,12 @@ const previousStep = () => {
 
 const selectRepository = async (repo) => {
   selectedRepository.value = repo
+  
+  console.log('📂 Repository selected:', { 
+    name: repo.name, 
+    tag_prefix: repo.tag_prefix,
+    prefixType: typeof repo.tag_prefix 
+  })
   
   // Obtener la versión actual del repositorio desde Git (último tag)
   try {
@@ -1099,8 +1113,45 @@ const generateRelease = async () => {
   
   try {
     const finalVersion = getFinalVersion()
+    const tagPrefix = selectedRepository.value.tag_prefix || ''
+    const tagName = `${tagPrefix}${finalVersion}`
+    
+    console.log('📝 Creating tag with prefix:', { 
+      prefix: tagPrefix, 
+      version: finalVersion, 
+      fullTag: tagName 
+    })
+    
+    // 🧑‍🤝‍🧑 Extract collaborators from commits
+    console.log('👥 Extrayendo colaboradores de los commits...')
+    let collaborators = []
+    
+    try {
+      // Get commits for the release to extract collaborators
+      const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+        selectedRepository.value.path,
+        currentVersion.value,
+        versionType.value
+      )
+      
+      if (commitsResponse.success && commitsResponse.data?.commits) {
+        const collaboratorsResponse = await window.electronAPI.gitExtractCollaborators(commitsResponse.data.commits)
+        if (collaboratorsResponse.success) {
+          collaborators = collaboratorsResponse.data || []
+          console.log('✅ Colaboradores extraídos:', collaborators)
+        } else {
+          console.warn('⚠️ No se pudieron extraer colaboradores:', collaboratorsResponse.error)
+        }
+      } else {
+        console.warn('⚠️ No se pudieron obtener commits para extraer colaboradores:', commitsResponse.error)
+      }
+    } catch (error) {
+      console.error('❌ Error extrayendo colaboradores:', error)
+    }
+    
     const releaseData = {
       version: finalVersion,
+      tag_name: tagName, // Add the tag_name with prefix
       repository: selectedRepository.value.name,
       repositoryPath: selectedRepository.value.path,
       template: selectedTemplate.value.name,
@@ -1108,13 +1159,11 @@ const generateRelease = async () => {
       date: new Date().toISOString(),
       content: generatedPreview.value,
       releaseType: versionType.value,
-      baseVersion: currentVersion.value
+      baseVersion: currentVersion.value,
+      collaborators: collaborators // Add collaborators list
     }
     
     console.log('🚀 Generando release:', releaseData)
-    
-    // 1. Crear tag de Git si está habilitado
-    const tagName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
     
     if (createTag.value) {
       console.log('📝 Creando tag de Git...')
@@ -1467,11 +1516,71 @@ const generateRelease = async () => {
         alert(`⚠️ Release creado, pero hubo un error con CodebaseHQ: ${error.message}`)
       }
     }
+
+    // 4.5. Enviar notificación a Teams si está habilitado
+    if (sendTeamsNotification.value) {
+      console.log('📢 Enviando notificación a Teams...')
+      
+      try {
+        // Obtener configuración de Teams
+        const teamsWebhookUrl = await getConfig('teams_webhook_url')
+        
+        if (!teamsWebhookUrl) {
+          console.warn('⚠️ Teams está habilitado pero no hay webhook URL configurada')
+          alert('⚠️ Teams está habilitado pero no hay webhook URL configurada')
+        } else {
+          const teamsConfig = {
+            webhookUrl: teamsWebhookUrl,
+            enabled: true
+          }
+
+          // Obtener información de commits para la notificación
+          let commitCount = 0
+          try {
+            const recentCommitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+              selectedRepository.value.path,
+              currentVersion.value,
+              versionType.value
+            )
+            if (recentCommitsResponse.success && recentCommitsResponse.data?.commits) {
+              commitCount = recentCommitsResponse.data.commits.length
+            }
+          } catch (error) {
+            console.warn('No se pudo obtener count de commits para Teams:', error)
+          }
+
+          // Preparar datos de la notificación
+          const notification = {
+            repositoryName: selectedRepository.value.name,
+            version: finalVersion,
+            tagName: tagName,
+            releaseNotes: generatedPreview.value,
+            author: 'ReleaseFlow', // Fallback if no collaborators
+            collaborators: collaborators, // Use extracted collaborators
+            commitCount: commitCount,
+            repositoryUrl: selectedRepository.value.url || null
+          }
+
+          console.log('📢 Enviando notificación a Teams:', notification)
+          const teamsResponse = await window.electronAPI.teamsSendReleaseNotification(teamsConfig, notification)
+          
+          if (teamsResponse.success) {
+            console.log('✅ Notificación enviada exitosamente a Teams')
+          } else {
+            console.warn('⚠️ Error enviando notificación a Teams:', teamsResponse.error)
+            alert(`⚠️ Release creado, pero hubo un error enviando notificación a Teams: ${teamsResponse.error}`)
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error en proceso de Teams:', error)
+        alert(`⚠️ Release creado, pero hubo un error con Teams: ${error.message}`)
+      }
+    }
     
     // 5. Actualizar lista de releases recientes
     await releasesStore.loadReleases()
     
-    alert(`✅ Release ${finalVersion} generado exitosamente!`)
+    alert(`✅ Release ${tagName} generado exitosamente!`)
     showWizard.value = false
     resetWizardData()
     
@@ -1795,6 +1904,12 @@ const loadIntegrationsStatus = async () => {
     console.log('🔧 JIRA config response:', jiraEnabled)
     integrationsStatus.value.jira.enabled = jiraEnabled.success && (jiraEnabled.data === 'true' || jiraEnabled.data?.value === 'true')
     createJiraRelease.value = integrationsStatus.value.jira.enabled
+
+    // Verificar Teams (solo configuración global)
+    const teamsEnabled = await window.electronAPI.dbGetConfig('teams_enabled')
+    console.log('🔧 Teams config response:', teamsEnabled)
+    integrationsStatus.value.teams.enabled = teamsEnabled.success && (teamsEnabled.data === 'true' || teamsEnabled.data?.value === 'true')
+    sendTeamsNotification.value = integrationsStatus.value.teams.enabled
     
     // Verificar CodebaseHQ (configuración global + del repositorio)
     const codebaseGlobalEnabled = await window.electronAPI.dbGetConfig('codebase_enabled')
@@ -1828,7 +1943,8 @@ const loadIntegrationsStatus = async () => {
     console.log('📋 Estado final de integraciones:', integrationsStatus.value)
     console.log('🔧 Checkboxes configurados:', {
       codebase: createCodebaseDeployment.value,
-      jira: createJiraRelease.value
+      jira: createJiraRelease.value,
+      teams: sendTeamsNotification.value
     })
   } catch (error) {
     console.error('Error cargando estado de integraciones:', error)
@@ -1936,6 +2052,111 @@ const getConfig = async (key) => {
   }
 }
 
+const sendTeamsNotificationManual = async (release) => {
+  try {
+    console.log('📢 Sending manual Teams notification for release:', release)
+    
+    // Obtener configuración de Teams
+    await settingsStore.loadSettings()
+    
+    if (!settingsStore.isTeamsConfigured) {
+      alert('⚠️ Teams no está configurado. Ve a Configuración para configurar la integración con Teams.')
+      return
+    }
+    
+    // Si no hay tag_name, intentar construirlo desde el repositorio
+    let tagName = release.tag_name
+    if (!tagName) {
+      const reposResponse = await window.electronAPI.dbListRepositories()
+      const repository = reposResponse.success 
+        ? reposResponse.data.repositories.find(repo => repo.name === release.repository)
+        : null
+      
+      if (repository) {
+        tagName = `${repository.tag_prefix || ''}${release.version}`
+        console.log(`📝 Constructed tag name: ${tagName} for release without tag_name`)
+        
+        // Opcionalmente, actualizar la release en la base de datos
+        // await releasesStore.updateRelease(release.id, { tag_name: tagName })
+      }
+    }
+
+    // Confirmar envío
+    const confirm = window.confirm(
+      `¿Enviar notificación a Teams?\n\n` +
+      `Repositorio: ${release.repository}\n` +
+      `Versión: ${release.version}\n` +
+      `Tag: ${tagName || release.version}`
+    )
+
+    if (!confirm) return
+
+    // Obtener información del repositorio para el commit count
+    const reposResponse = await window.electronAPI.dbListRepositories()
+    const repository = reposResponse.success 
+      ? reposResponse.data.repositories.find(repo => repo.name === release.repository)
+      : null
+
+    let commitCount = 0
+    let collaborators = []
+    
+    if (repository?.path) {
+      try {
+        const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+          repository.path,
+          release.version,
+          'patch'
+        )
+        
+        if (commitsResponse.success && commitsResponse.data?.commits) {
+          commitCount = commitsResponse.data.commits.length || 0
+          
+          // Extract collaborators from commits
+          const collaboratorsResponse = await window.electronAPI.gitExtractCollaborators(commitsResponse.data.commits)
+          if (collaboratorsResponse.success) {
+            collaborators = collaboratorsResponse.data || []
+            console.log('👥 Manual notification - Colaboradores extraídos:', collaborators)
+          }
+        }
+      } catch (error) {
+        console.warn('Could not get commit count and collaborators:', error)
+      }
+    }
+
+    // Use stored collaborators if available, otherwise use extracted ones
+    const releaseCollaborators = (release.collaborators && Array.isArray(release.collaborators)) 
+      ? release.collaborators 
+      : collaborators
+
+    // Preparar notificación
+    const notification = {
+      repositoryName: release.repository,
+      version: release.version,
+      tagName: tagName || release.version, // Use the constructed tagName or fallback to version
+      releaseNotes: release.content || 'Sin notas de release',
+      author: release.author || 'ReleaseFlow', // Fallback
+      collaborators: releaseCollaborators, // Use collaborators from release or extracted
+      commitCount: commitCount,
+      repositoryUrl: repository?.url || repository?.remote_url || null
+    }
+
+    console.log('📤 Sending Teams notification:', notification)
+    const teamsResponse = await window.electronAPI.teamsSendReleaseNotification(
+      settingsStore.teamsConfig,
+      notification
+    )
+
+    if (teamsResponse.success) {
+      alert(`✅ Notificación enviada exitosamente a Teams para ${release.version}`)
+    } else {
+      throw new Error(teamsResponse.error)
+    }
+    
+  } catch (error) {
+    console.error('❌ Error sending Teams notification:', error)
+    alert(`❌ Error enviando notificación a Teams: ${error.message}`)
+  }
+}
 
 onMounted(async () => {
   // Cargar datos reales de los stores
@@ -1951,6 +2172,14 @@ onMounted(async () => {
     console.log('Repositories loaded:', repositoriesStore.repositories)
     console.log('Templates loaded:', templatesStore.templates)
     console.log('Releases loaded:', releasesStore.releases)
+    
+    // Cargar configuración de Settings Store
+    await settingsStore.loadSettings()
+    
+    // Actualizar estado de Teams para mostrar/ocultar el botón de megáfono
+    integrationsStatus.value.teams.enabled = settingsStore.isTeamsConfigured
+    console.log('🔧 Teams config on mount:', integrationsStatus.value.teams.enabled)
+    
   } catch (error) {
     console.error('Error loading releases data:', error)
   }
