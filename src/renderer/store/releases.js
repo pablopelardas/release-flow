@@ -40,14 +40,14 @@ export const useReleasesStore = defineStore('releases', {
     },
     nextVersion: (state) => {
       if (!state.wizardState.selectedRepository?.currentVersion) return '1.0.0'
-      
+
       const currentVersion = state.wizardState.selectedRepository.currentVersion
       const versionType = state.wizardState.versionType
-      
+
       if (state.wizardState.customVersion) {
         return state.wizardState.customVersion
       }
-      
+
       try {
         return semver.inc(currentVersion, versionType) || '1.0.0'
       } catch (error) {
@@ -124,10 +124,10 @@ export const useReleasesStore = defineStore('releases', {
     // Release Management
     async validateReleasePrerequisites(config) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.releaseValidatePrerequisites(config)
-        
+
         if (response.success) {
           return response.data
         } else {
@@ -143,10 +143,10 @@ export const useReleasesStore = defineStore('releases', {
     async generateChangelog(config) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.releaseGenerateChangelog(config)
-        
+
         if (response.success) {
           this.wizardState.releaseNotes = response.data.changelog || response.data
           return response.data
@@ -165,10 +165,10 @@ export const useReleasesStore = defineStore('releases', {
     async createRelease(config) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.releaseCreate(config)
-        
+
         if (response.success) {
           // Añadir a la lista de releases
           const newRelease = {
@@ -180,10 +180,10 @@ export const useReleasesStore = defineStore('releases', {
             created_at: new Date().toISOString(),
             ...response.data,
           }
-          
+
           this.releases.unshift(newRelease)
           this.currentRelease = newRelease
-          
+
           return newRelease
         } else {
           throw new Error(response.error || 'Error creating release')
@@ -200,10 +200,10 @@ export const useReleasesStore = defineStore('releases', {
     async loadReleaseHistory(repoPath, limit = 10) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.releaseGetHistory(repoPath, limit)
-        
+
         if (response.success) {
           this.releaseHistory = response.data || []
         } else {
@@ -219,10 +219,10 @@ export const useReleasesStore = defineStore('releases', {
 
     async suggestNextVersion(repoPath, currentVersion) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.releaseSuggestVersion(repoPath, currentVersion)
-        
+
         if (response.success) {
           return response.data
         } else {
@@ -238,7 +238,7 @@ export const useReleasesStore = defineStore('releases', {
     // Utility Methods
     calculateVersionPreview(currentVersion, versionType) {
       if (!currentVersion) return '1.0.0'
-      
+
       try {
         return semver.inc(currentVersion, versionType) || '1.0.0'
       } catch (error) {
@@ -257,7 +257,7 @@ export const useReleasesStore = defineStore('releases', {
 
     async saveReleaseToFile(release, filePath) {
       this.clearError()
-      
+
       try {
         const content = `# Release ${release.version}
 
@@ -268,13 +268,13 @@ Created: ${release.created_at}
 Repository: ${release.repository}
 ${release.tag ? `Tag: ${release.tag}` : ''}
 `
-        
+
         const response = await window.electronAPI.writeFile(filePath, content)
-        
+
         if (!response.success) {
           throw new Error(response.error || 'Error saving release to file')
         }
-        
+
         return true
       } catch (error) {
         console.error('Error saving release to file:', error)
@@ -299,21 +299,21 @@ ${release.tag ? `Tag: ${release.tag}` : ''}
     async saveRelease(releaseData) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         // Guardar release en base de datos usando IPC
         const response = await window.electronAPI.dbInsertRelease(releaseData)
-        
+
         if (response.success) {
           // Agregar a la lista local
           const newRelease = {
             id: response.data.id || Date.now(),
             ...releaseData,
-            created_at: releaseData.date
+            created_at: releaseData.date,
           }
           this.releases.unshift(newRelease)
           this.currentRelease = newRelease
-          
+
           return { success: true, data: newRelease }
         } else {
           throw new Error(response.error || 'Error saving release to database')
@@ -330,10 +330,10 @@ ${release.tag ? `Tag: ${release.tag}` : ''}
     async loadReleases() {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.dbListReleases()
-        
+
         if (response.success) {
           this.releases = response.data || []
           return { success: true, data: this.releases }

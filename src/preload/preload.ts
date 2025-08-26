@@ -21,22 +21,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Operaciones Git
   gitStatus: (repoPath) => ipcRenderer.invoke('git-status', repoPath),
   gitValidateRepository: (repoPath) => ipcRenderer.invoke('git-validate-repository', repoPath),
-  gitCreateTag: (repoPath, tagName, message) => ipcRenderer.invoke('git-create-tag', repoPath, tagName, message),
+  gitCreateTag: (repoPath, tagName, message) =>
+    ipcRenderer.invoke('git-create-tag', repoPath, tagName, message),
   gitPushTags: (repoPath, remote) => ipcRenderer.invoke('git-push-tags', repoPath, remote),
   gitGetRemotes: (repoPath) => ipcRenderer.invoke('git-get-remotes', repoPath),
   gitValidateForRelease: (repoPath) => ipcRenderer.invoke('git-validate-for-release', repoPath),
-  gitGetTags: (repoPath, sortBySemver) => ipcRenderer.invoke('git-get-tags', repoPath, sortBySemver),
+  gitGetTags: (repoPath, sortBySemver) =>
+    ipcRenderer.invoke('git-get-tags', repoPath, sortBySemver),
   gitCommit: (repoPath, message) => ipcRenderer.invoke('git-commit', repoPath, message),
   gitGetCurrentBranch: (repoPath) => ipcRenderer.invoke('git-get-current-branch', repoPath),
   gitIsClean: (repoPath) => ipcRenderer.invoke('git-is-clean', repoPath),
   gitGetCommits: (repoPath, limit) => ipcRenderer.invoke('git-get-commits', repoPath, limit),
-  gitGetCommitsSinceLastTag: (repoPath) => ipcRenderer.invoke('git-get-commits-since-last-tag', repoPath),
-  gitGetCommitsForReleaseType: (repoPath, currentVersion, releaseType) => ipcRenderer.invoke('git-get-commits-for-release-type', repoPath, currentVersion, releaseType),
+  gitGetCommitsSinceLastTag: (repoPath) =>
+    ipcRenderer.invoke('git-get-commits-since-last-tag', repoPath),
+  gitGetCommitsForReleaseType: (repoPath, currentVersion, releaseType) =>
+    ipcRenderer.invoke('git-get-commits-for-release-type', repoPath, currentVersion, releaseType),
 
   // Template engine
-  templateRender: (templateContent, data) => ipcRenderer.invoke('template-render', templateContent, data),
+  templateRender: (templateContent, data) =>
+    ipcRenderer.invoke('template-render', templateContent, data),
   templateValidate: (templateContent) => ipcRenderer.invoke('template-validate', templateContent),
-  templatePreview: (templateContent, data) => ipcRenderer.invoke('template-preview', templateContent, data),
+  templatePreview: (templateContent, data) =>
+    ipcRenderer.invoke('template-preview', templateContent, data),
   templateSave: (templateData) => ipcRenderer.invoke('template-save', templateData),
   templateLoad: (templateId) => ipcRenderer.invoke('template-load', templateId),
 
@@ -52,27 +58,57 @@ contextBridge.exposeInMainWorld('electronAPI', {
   dbGetConfig: (key) => ipcRenderer.invoke('db-get-config', key),
   dbInsertRelease: (releaseData) => ipcRenderer.invoke('db-insert-release', releaseData),
   dbListReleases: () => ipcRenderer.invoke('db-list-releases'),
-  dbGetSecondaryRepositories: (mainRepoId) => ipcRenderer.invoke('db-get-secondary-repositories', mainRepoId),
+  dbGetSecondaryRepositories: (mainRepoId) =>
+    ipcRenderer.invoke('db-get-secondary-repositories', mainRepoId),
   dbGetMainRepositories: () => ipcRenderer.invoke('db-get-main-repositories'),
-  dbGetAvailableSecondaryRepositories: (excludeMainRepoId) => ipcRenderer.invoke('db-get-available-secondary-repositories', excludeMainRepoId),
-  dbUpdateSecondaryRepositories: (mainRepoId, secondaryRepoIds) => ipcRenderer.invoke('db-update-secondary-repositories', mainRepoId, secondaryRepoIds),
+  dbGetAvailableSecondaryRepositories: (excludeMainRepoId) =>
+    ipcRenderer.invoke('db-get-available-secondary-repositories', excludeMainRepoId),
+  dbUpdateSecondaryRepositories: (mainRepoId, secondaryRepoIds) =>
+    ipcRenderer.invoke('db-update-secondary-repositories', mainRepoId, secondaryRepoIds),
 
   // Releases
-  releaseValidatePrerequisites: (config) => ipcRenderer.invoke('release-validate-prerequisites', config),
+  releaseValidatePrerequisites: (config) =>
+    ipcRenderer.invoke('release-validate-prerequisites', config),
   releaseGenerateChangelog: (config) => ipcRenderer.invoke('release-generate-changelog', config),
   releaseCreate: (config) => ipcRenderer.invoke('release-create', config),
-  releaseGetHistory: (repoPath, limit) => ipcRenderer.invoke('release-get-history', repoPath, limit),
-  releaseSuggestVersion: (repoPath, currentVersion) => ipcRenderer.invoke('release-suggest-version', repoPath, currentVersion),
-  
+  releaseGetHistory: (repoPath, limit) =>
+    ipcRenderer.invoke('release-get-history', repoPath, limit),
+  releaseSuggestVersion: (repoPath, currentVersion) =>
+    ipcRenderer.invoke('release-suggest-version', repoPath, currentVersion),
+
   // Unified releases
-  releaseCollectMultiRepositoryData: (mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion) => 
-    ipcRenderer.invoke('release-collect-multi-repository-data', mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion),
-  releaseGenerateUnifiedChangelog: (unifiedData, templateOrId) => 
+  releaseCollectMultiRepositoryData: (
+    mainRepoId,
+    mainRepoName,
+    mainRepoPath,
+    secondaryRepositories,
+    targetVersion
+  ) =>
+    ipcRenderer.invoke(
+      'release-collect-multi-repository-data',
+      mainRepoId,
+      mainRepoName,
+      mainRepoPath,
+      secondaryRepositories,
+      targetVersion
+    ),
+  releaseGenerateUnifiedChangelog: (unifiedData, templateOrId) =>
     ipcRenderer.invoke('release-generate-unified-changelog', unifiedData, templateOrId),
 
   // Configuración
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
   setConfig: (key, value) => ipcRenderer.invoke('set-config', key, value),
+
+  // CodebaseHQ
+  codebaseCreateDeployment: (config, deployment) =>
+    ipcRenderer.invoke('codebase-create-deployment', config, deployment),
+  codebaseTestConnection: (config) => ipcRenderer.invoke('codebase-test-connection', config),
+  codebaseValidateConfig: (config) => ipcRenderer.invoke('codebase-validate-config', config),
+  codebaseGetDeployments: (config) => ipcRenderer.invoke('codebase-get-deployments', config),
+  codebaseGetActivity: (config, page) => ipcRenderer.invoke('codebase-get-activity', config, page),
+
+  // Debug
+  dbGetTableStructure: () => ipcRenderer.invoke('db-get-table-structure'),
 
   // Eventos del sistema
   onAppUpdate: (callback) => ipcRenderer.on('app-update-available', callback),

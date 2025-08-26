@@ -25,11 +25,11 @@ export const useTemplatesStore = defineStore('templates', {
 
   getters: {
     templatesCount: (state) => state.templates.length,
-    getTemplateById: (state) => (id) => state.templates.find(template => template.id === id),
-    getTemplatesByCategory: (state) => (category) => 
-      state.templates.filter(template => template.category === category),
+    getTemplateById: (state) => (id) => state.templates.find((template) => template.id === id),
+    getTemplatesByCategory: (state) => (category) =>
+      state.templates.filter((template) => template.category === category),
     hasTemplates: (state) => state.templates.length > 0,
-    activeTemplates: (state) => state.templates.filter(template => template.active),
+    activeTemplates: (state) => state.templates.filter((template) => template.active),
   },
 
   actions: {
@@ -48,12 +48,12 @@ export const useTemplatesStore = defineStore('templates', {
     async loadTemplates(category = null) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         console.log(`[Store] loadTemplates called with category:`, category)
         const response = await window.electronAPI.dbGetTemplates(category)
         console.log(`[Store] loadTemplates response:`, response)
-        
+
         if (response.success) {
           this.templates = response.data.templates || []
           console.log(`[Store] Set templates to:`, this.templates)
@@ -70,12 +70,12 @@ export const useTemplatesStore = defineStore('templates', {
 
     async loadPredefinedTemplates() {
       this.clearError()
-      
+
       try {
         console.log(`[Store] loadPredefinedTemplates called`)
         const response = await window.electronAPI.dbGetTemplates('predefined')
         console.log(`[Store] loadPredefinedTemplates response:`, response)
-        
+
         if (response.success && response.data.templates) {
           this.predefinedTemplates = response.data.templates
           console.log(`[Store] Set predefinedTemplates to:`, this.predefinedTemplates)
@@ -89,16 +89,16 @@ export const useTemplatesStore = defineStore('templates', {
     async saveTemplate(templateData) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         // Validar template primero
         const validationResponse = await window.electronAPI.templateValidate(templateData.content)
-        
+
         if (!validationResponse.success || !validationResponse.data.isValid) {
           throw new Error(
-            validationResponse.data?.message || 
-            validationResponse.data?.error || 
-            'Template inválido'
+            validationResponse.data?.message ||
+              validationResponse.data?.error ||
+              'Template inválido'
           )
         }
 
@@ -109,18 +109,18 @@ export const useTemplatesStore = defineStore('templates', {
           updated_at: new Date().toISOString(),
           active: 1,
         })
-        
+
         if (response.success) {
           const newTemplate = { ...templateData, id: response.data.id }
-          
+
           // Añadir o actualizar en la lista local
-          const existingIndex = this.templates.findIndex(t => t.id === newTemplate.id)
+          const existingIndex = this.templates.findIndex((t) => t.id === newTemplate.id)
           if (existingIndex !== -1) {
             this.templates[existingIndex] = newTemplate
           } else {
             this.templates.push(newTemplate)
           }
-          
+
           return newTemplate
         } else {
           throw new Error(response.error || 'Error saving template')
@@ -136,10 +136,10 @@ export const useTemplatesStore = defineStore('templates', {
 
     async loadTemplate(templateId) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.templateLoad(templateId)
-        
+
         if (response.success) {
           return response.data
         } else {
@@ -154,11 +154,11 @@ export const useTemplatesStore = defineStore('templates', {
 
     async renderTemplate(templateContent, data = null) {
       this.clearError()
-      
+
       try {
         const renderData = data || this.previewData
         const response = await window.electronAPI.templateRender(templateContent, renderData)
-        
+
         if (response.success) {
           return response.data.output || response.data
         } else {
@@ -173,10 +173,10 @@ export const useTemplatesStore = defineStore('templates', {
 
     async validateTemplate(templateContent) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.templateValidate(templateContent)
-        
+
         if (response.success) {
           return response.data
         } else {
@@ -191,11 +191,11 @@ export const useTemplatesStore = defineStore('templates', {
 
     async previewTemplate(templateContent, data = null) {
       this.clearError()
-      
+
       try {
         const previewData = data || this.previewData
         const response = await window.electronAPI.templatePreview(templateContent, previewData)
-        
+
         if (response.success) {
           return response.data
         } else {
@@ -222,14 +222,14 @@ export const useTemplatesStore = defineStore('templates', {
 
     async exportTemplate(template, filePath) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.writeFile(filePath, template.content)
-        
+
         if (!response.success) {
           throw new Error(response.error || 'Error exporting template')
         }
-        
+
         return true
       } catch (error) {
         console.error('Error exporting template:', error)
@@ -240,10 +240,10 @@ export const useTemplatesStore = defineStore('templates', {
 
     async importTemplate(filePath) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.readFile(filePath)
-        
+
         if (response.success) {
           return response.content
         } else {
@@ -259,13 +259,13 @@ export const useTemplatesStore = defineStore('templates', {
     async deleteTemplate(templateId) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.dbDeleteTemplate(templateId)
-        
+
         if (response.success) {
           // Remover de la lista local
-          this.templates = this.templates.filter(t => t.id !== templateId)
+          this.templates = this.templates.filter((t) => t.id !== templateId)
           return true
         } else {
           throw new Error(response.error || 'Error deleting template')

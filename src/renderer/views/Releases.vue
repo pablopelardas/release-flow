@@ -392,22 +392,34 @@
 
               <!-- Options -->
               <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-3">
-                <div class="flex items-center">
-                  <Checkbox v-model="createTag" :binary="true" />
-                  <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                    Crear tag de Git automáticamente
-                  </label>
+                <!-- Tag creation is mandatory -->
+                <div class="flex items-center text-green-700 dark:text-green-300">
+                  <i class="pi pi-check-circle mr-2 text-green-500"></i>
+                  <span class="text-sm font-medium">
+                    Se creará tag de Git automáticamente: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{{ selectedRepository?.tag_prefix || '' }}{{ version }}</code>
+                  </span>
                 </div>
-                <div class="flex items-center" v-if="createTag">
+                
+                <div class="flex items-center">
                   <Checkbox v-model="pushTags" :binary="true" />
                   <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
                     <i class="pi pi-upload mr-1 text-blue-500"></i>
                     Hacer push automático de tags al repositorio remoto
                   </label>
                 </div>
+                
+                <div class="flex items-center">
+                  <Checkbox v-model="createCodebaseDeployment" :binary="true" />
+                  <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    <i class="pi pi-cloud-upload mr-1 text-purple-500"></i>
+                    Crear deployment en CodebaseHQ
+                  </label>
+                </div>
+                
                 <div class="flex items-center">
                   <Checkbox v-model="saveToFile" :binary="true" />
                   <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    <i class="pi pi-file mr-1 text-gray-500"></i>
                     Guardar release notes en archivo
                   </label>
                 </div>
@@ -504,6 +516,14 @@
                   size="small" 
                   text
                 />
+                <Button 
+                  @click="deployToCodebaseHQ(release)" 
+                  icon="pi pi-cloud-upload" 
+                  size="small" 
+                  text
+                  class="text-purple-600 hover:text-purple-700"
+                  v-tooltip.top="'Deploy to CodebaseHQ'"
+                />
               </div>
             </div>
           </div>
@@ -570,9 +590,10 @@ const selectedTemplate = ref(null)
 
 // Step 4: Preview and options
 const generatedPreview = ref('')
-const createTag = ref(true)
-const pushTags = ref(false)
-const saveToFile = ref(true)
+const createTag = ref(true) // Always true, no longer a checkbox
+const pushTags = ref(true) // Default enabled
+const saveToFile = ref(false) // Default disabled
+const createCodebaseDeployment = ref(true) // Default enabled
 
 // Recent releases - usar store real
 const recentReleases = computed(() => releasesStore.releases)
@@ -624,8 +645,9 @@ const resetWizardData = () => {
   selectedTemplate.value = null
   generatedPreview.value = ''
   createTag.value = true
-  pushTags.value = false
-  saveToFile.value = true
+  pushTags.value = true // Default enabled
+  saveToFile.value = false // Default disabled  
+  createCodebaseDeployment.value = true // Default enabled
   repositoryValidation.value = {
     isValid: true,
     warnings: [],
@@ -1007,9 +1029,10 @@ const generateRelease = async () => {
     console.log('🚀 Generando release:', releaseData)
     
     // 1. Crear tag de Git si está habilitado
+    const tagName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
+    
     if (createTag.value) {
       console.log('📝 Creando tag de Git...')
-      const tagName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
       const releaseMessage = generateCleanTagMessage(finalVersion, generatedPreview.value)
       
       console.log(`🏷️ Tag name: ${tagName}`)
@@ -1158,7 +1181,86 @@ const generateRelease = async () => {
       }
     }
     
-    // 4. Actualizar lista de releases recientes
+    // 4. Crear deployment en CodebaseHQ si está habilitado
+    if (createCodebaseDeployment.value) {
+      console.log('☁️ Creando deployment en CodebaseHQ...')
+      
+      try {
+        // Obtener configuración global de CodebaseHQ
+        const codebaseConfig = {
+          accountName: await getConfig('codebase_account_name'),
+          username: await getConfig('codebase_username'), 
+          apiKey: await getConfig('codebase_api_key'),
+          projectPermalink: await getConfig('codebase_project_permalink'),
+          repositoryPermalink: selectedRepository.value.codebase_repository_permalink || selectedRepository.value.name.toLowerCase()
+        }
+
+        // Validar configuración
+        const configValidation = await window.electronAPI.codebaseValidateConfig(codebaseConfig)
+        if (!configValidation.success || !configValidation.data.isValid) {
+          const errors = configValidation.data?.errors || ['Error de validación desconocido']
+          console.warn('⚠️ Configuración de CodebaseHQ inválida:', errors)
+          alert(`⚠️ No se pudo crear deployment en CodebaseHQ: ${errors.join(', ')}`)
+        } else {
+          // Obtener información del commit actual
+          console.log('🔍 Obteniendo información del repositorio:', selectedRepository.value.path)
+          const currentBranchResponse = await window.electronAPI.gitGetCurrentBranch(selectedRepository.value.path)
+          const commitsResponse = await window.electronAPI.gitGetCommits(selectedRepository.value.path, 1)
+          
+          console.log('🌿 Respuesta de branch:', currentBranchResponse)
+          console.log('📝 Respuesta de commits:', commitsResponse)
+          
+          const currentBranch = currentBranchResponse.success ? currentBranchResponse.data : 'main'
+          const lastCommit = commitsResponse.success && commitsResponse.data?.commits?.length > 0 
+            ? commitsResponse.data.commits[0] : null
+
+          if (!lastCommit) {
+            console.warn('⚠️ No se pudo obtener información del commit actual')
+            console.warn('Detalles del branch:', currentBranchResponse)
+            console.warn('Detalles de commits:', commitsResponse)
+            
+            let errorDetails = []
+            if (!currentBranchResponse.success) {
+              errorDetails.push(`Error obteniendo branch: ${currentBranchResponse.error}`)
+            }
+            if (!commitsResponse.success) {
+              errorDetails.push(`Error obteniendo commits: ${commitsResponse.error}`)
+            }
+            if (commitsResponse.success && (!commitsResponse.data?.commits || commitsResponse.data.commits.length === 0)) {
+              errorDetails.push('No hay commits en el repositorio')
+            }
+            
+            alert(`⚠️ No se pudo crear deployment: falta información del commit\n\n${errorDetails.join('\n')}`)
+          } else {
+            // Crear deployment
+            const deployment = {
+              branch: currentBranch,
+              revision: lastCommit.hash,
+              environment: selectedRepository.value.codebase_environment || 'production',
+              servers: (selectedRepository.value.codebase_servers || 'app.server.com').split(',').map(s => s.trim()),
+              tagName: tagName,
+              releaseNotes: generatedPreview.value
+            }
+
+            console.log('📤 Datos del deployment:', deployment)
+            
+            const deploymentResponse = await window.electronAPI.codebaseCreateDeployment(codebaseConfig, deployment)
+            
+            if (deploymentResponse.success) {
+              console.log('✅ Deployment creado exitosamente en CodebaseHQ')
+            } else {
+              console.error('❌ Error creando deployment:', deploymentResponse.error)
+              alert(`⚠️ Release creado, pero falló el deployment en CodebaseHQ: ${deploymentResponse.error}`)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error en proceso de CodebaseHQ:', error)
+        alert(`⚠️ Release creado, pero hubo un error con CodebaseHQ: ${error.message}`)
+      }
+    }
+    
+    // 5. Actualizar lista de releases recientes
     await releasesStore.loadReleases()
     
     alert(`✅ Release ${finalVersion} generado exitosamente!`)
@@ -1306,6 +1408,92 @@ const downloadRelease = async (release) => {
   } catch (error) {
     console.error('❌ Error descargando release:', error)
     alert(`❌ Error descargando release: ${error.message}`)
+  }
+}
+
+const deployToCodebaseHQ = async (release) => {
+  try {
+    console.log('🚀 Deploying release to CodebaseHQ:', release)
+    
+    // Obtener configuración global de CodebaseHQ
+    const globalConfig = {
+      accountName: await getConfig('codebase_account_name'),
+      username: await getConfig('codebase_username'), 
+      apiKey: await getConfig('codebase_api_key'),
+      projectPermalink: await getConfig('codebase_project_permalink')
+    }
+
+    // Buscar el repositorio para obtener configuración específica
+    const reposResponse = await window.electronAPI.dbListRepositories()
+    if (!reposResponse.success) {
+      throw new Error('No se pudieron cargar los repositorios')
+    }
+
+    const repository = reposResponse.data.repositories.find(repo => repo.name === release.repository)
+    if (!repository) {
+      throw new Error(`Repositorio '${release.repository}' no encontrado`)
+    }
+
+    if (!repository.codebase_enabled) {
+      alert(`⚠️ CodebaseHQ no está habilitado para el repositorio '${release.repository}'. Ve a Repositorios → Configurar CodebaseHQ para habilitarlo.`)
+      return
+    }
+
+    // Configuración completa para deployment (incluyendo repository permalink)
+    const fullConfig = {
+      ...globalConfig,
+      repositoryPermalink: repository.codebase_repository_permalink || release.repository.toLowerCase()
+    }
+
+    // Validar configuración completa (incluyendo repository permalink)
+    const configValidation = await window.electronAPI.codebaseValidateConfig(fullConfig)
+    if (!configValidation.success || !configValidation.data.isValid) {
+      const errors = configValidation.data?.errors || ['Error de configuración desconocido']
+      alert(`⚠️ Configuración de CodebaseHQ incompleta. Ve a Configuración para completar:\n${errors.join(', ')}`)
+      return
+    }
+
+    // Confirmar deployment
+    const confirm = window.confirm(
+      `¿Crear deployment en CodebaseHQ?\n\n` +
+      `Repositorio: ${release.repository}\n` +
+      `Versión: ${release.version}\n` +
+      `Environment: ${repository.codebase_environment}\n` +
+      `Servers: ${repository.codebase_servers}`
+    )
+
+    if (!confirm) return
+
+    // Obtener información del commit actual del repositorio
+    const currentBranchResponse = await window.electronAPI.gitGetCurrentBranch(repository.path)
+    const commitsResponse = await window.electronAPI.gitGetCommits(repository.path, 1)
+    
+    const currentBranch = currentBranchResponse.success ? currentBranchResponse.data : 'main'
+    const lastCommit = commitsResponse.success && commitsResponse.data?.commits?.length > 0 
+      ? commitsResponse.data.commits[0] : null
+
+    // Crear deployment con la información disponible
+    const deployment = {
+      branch: currentBranch,
+      revision: lastCommit?.hash || release.tag_name || release.version,
+      environment: repository.codebase_environment || 'production',
+      servers: (repository.codebase_servers || 'app.server.com').split(',').map(s => s.trim()),
+      tagName: release.version,
+      releaseNotes: release.content
+    }
+
+    console.log('📤 Creando deployment:', deployment)
+    const deploymentResponse = await window.electronAPI.codebaseCreateDeployment(fullConfig, deployment)
+    
+    if (deploymentResponse.success) {
+      alert(`✅ Deployment creado exitosamente en CodebaseHQ para ${release.version}`)
+    } else {
+      throw new Error(deploymentResponse.error)
+    }
+    
+  } catch (error) {
+    console.error('❌ Error creating deployment:', error)
+    alert(`❌ Error creando deployment: ${error.message}`)
   }
 }
 
@@ -1467,6 +1655,17 @@ const generateCleanTagMessage = (version, htmlContent, suffix = '') => {
     .substring(0, 1500) // Limitar longitud para evitar problemas con Git
   
   return `${title}\n\n${cleanedContent}`
+}
+
+// Función helper para obtener configuración
+const getConfig = async (key) => {
+  try {
+    const response = await window.electronAPI.dbGetConfig(key)
+    return response.success ? response.data.value : ''
+  } catch (error) {
+    console.warn(`⚠️ Error obteniendo configuración ${key}:`, error)
+    return ''
+  }
 }
 
 

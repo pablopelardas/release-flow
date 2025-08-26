@@ -17,6 +17,10 @@ export interface Repository {
   tag_prefix?: string
   is_main_repository?: boolean
   active: boolean
+  codebase_repository_permalink?: string
+  codebase_environment?: string
+  codebase_servers?: string
+  codebase_enabled?: boolean
   created_at: string
   updated_at: string
 }
@@ -108,6 +112,10 @@ export class DatabaseService {
     this.db.pragma('cache_size = 1000')
     this.db.pragma('temp_store = MEMORY')
 
+    // Ejecutar migraciones primero
+    this.addCodebaseColumnsIfMissing()
+    this.ensureConfigurationsTable()
+
     // Crear tablas
     this.createTables()
 
@@ -132,6 +140,10 @@ export class DatabaseService {
         tag_prefix TEXT DEFAULT '',
         is_main_repository BOOLEAN DEFAULT 0,
         active BOOLEAN DEFAULT 1,
+        codebase_repository_permalink TEXT,
+        codebase_environment TEXT DEFAULT 'production',
+        codebase_servers TEXT,
+        codebase_enabled BOOLEAN DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
@@ -246,6 +258,13 @@ export class DatabaseService {
         ['notification_enabled', 'true'],
         ['backup_enabled', 'true'],
         ['backup_frequency', 'weekly'],
+        ['codebase_enabled', 'false'],
+        ['codebase_account_name', 'mindware'],
+        ['codebase_username', ''],
+        ['codebase_api_key', ''],
+        ['codebase_project_permalink', 'Clever'],
+        ['codebase_default_environment', 'production'],
+        ['codebase_default_servers', 'vturnoscli.omint.ad'],
       ]
 
       const insertMany = this.db.transaction((configs: Array<[string, string]>) => {
@@ -254,7 +273,7 @@ export class DatabaseService {
         }
       })
 
-      // @ts-ignore - Temporary fix for type mismatch
+      // @ts-expect-error - Temporary fix for type mismatch
       insertMany(defaultConfigs)
     }
 
@@ -275,7 +294,9 @@ export class DatabaseService {
 
     if (templateCount.count === 0) {
       // Insertar templates predefinidos
-      const insertTemplate = this.db.prepare('INSERT INTO templates (name, description, content, category) VALUES (?, ?, ?, ?)')
+      const insertTemplate = this.db.prepare(
+        'INSERT INTO templates (name, description, content, category) VALUES (?, ?, ?, ?)'
+      )
 
       const predefinedTemplates = [
         {
@@ -337,7 +358,7 @@ export class DatabaseService {
 
 {% endif %}
 ---
-*Generado automáticamente por ReleaseFlow*`
+*Generado automáticamente por ReleaseFlow*`,
         },
         {
           name: 'Changelog Simple',
@@ -384,7 +405,7 @@ export class DatabaseService {
 - {{ commit.subject }}
 {% endunless %}{% endfor %}
 
-{% endif %}`
+{% endif %}`,
         },
         {
           name: 'Release Notes con Breaking Changes',
@@ -455,13 +476,18 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 {% endif %}
 
 **Fecha:** {{ date | date: "%d de %B de %Y" }}
-**Autor:** {{ author | default: "Release Team" }}`
-        }
+**Autor:** {{ author | default: "Release Team" }}`,
+        },
       ]
 
       const insertManyTemplates = this.db.transaction((templates) => {
         for (const template of templates) {
-          insertTemplate.run(template.name, template.description, template.content, template.category)
+          insertTemplate.run(
+            template.name,
+            template.description,
+            template.content,
+            template.category
+          )
           console.log(`[DB] Inserted template: ${template.name}`)
         }
       })
@@ -480,8 +506,11 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   async insertRepository(repoData: Partial<Repository>): Promise<DatabaseResult<{ id: number }>> {
     try {
       const stmt = this.db.prepare(`
-        INSERT INTO repositories (name, path, url, branch, current_branch, is_clean, tag_prefix, is_main_repository, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO repositories (
+          name, path, url, branch, current_branch, is_clean, tag_prefix, is_main_repository, active,
+          codebase_enabled, codebase_repository_permalink, codebase_environment, codebase_servers
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       const result = stmt.run(
@@ -493,7 +522,11 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         repoData.is_clean !== undefined ? (repoData.is_clean ? 1 : 0) : null,
         repoData.tag_prefix || '',
         repoData.is_main_repository ? 1 : 0,
-        repoData.active !== false ? 1 : 0
+        repoData.active !== false ? 1 : 0,
+        repoData.codebase_enabled ? 1 : 0,
+        repoData.codebase_repository_permalink || null,
+        repoData.codebase_environment || 'production',
+        repoData.codebase_servers || null
       )
 
       return {
@@ -542,14 +575,16 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
     filters: { active?: number } = {}
   ): Promise<DatabaseResult<{ repositories: Repository[] }>> {
     try {
-      const query = filters.active !== undefined
-        ? 'SELECT * FROM repositories WHERE active = ? ORDER BY name'
-        : 'SELECT * FROM repositories ORDER BY name'
+      const query =
+        filters.active !== undefined
+          ? 'SELECT * FROM repositories WHERE active = ? ORDER BY name'
+          : 'SELECT * FROM repositories ORDER BY name'
 
       const stmt = this.db.prepare(query)
-      const repositories = filters.active !== undefined 
-        ? stmt.all(filters.active) as Repository[]
-        : stmt.all() as Repository[]
+      const repositories =
+        filters.active !== undefined
+          ? (stmt.all(filters.active) as Repository[])
+          : (stmt.all() as Repository[])
 
       return {
         success: true,
@@ -568,13 +603,24 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
    */
   async updateRepository(id: number, updates: Partial<Repository>): Promise<DatabaseResult> {
     try {
+      console.log(`[DB] Updating repository ${id} with:`, updates)
+
       const fields = Object.keys(updates)
         .map((key) => `${key} = ?`)
         .join(', ')
       const values = Object.values(updates)
 
-      const stmt = this.db.prepare(`UPDATE repositories SET ${fields} WHERE id = ?`)
+      const query = `UPDATE repositories SET ${fields} WHERE id = ?`
+      console.log(`[DB] Query: ${query}`)
+      console.log(`[DB] Values:`, [...values, id])
+
+      const stmt = this.db.prepare(query)
       const result = stmt.run(...values, id)
+
+      console.log(`[DB] Update result:`, {
+        changes: result.changes,
+        lastInsertRowid: result.lastInsertRowid,
+      })
 
       if (result.changes === 0) {
         return {
@@ -585,6 +631,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 
       return { success: true }
     } catch (error) {
+      console.error('[DB] Error updating repository:', error)
       return {
         success: false,
         error: `Error actualizando repositorio: ${(error as Error).message}`,
@@ -769,7 +816,10 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         console.log(`[DB] Found ${templates.length} templates for category '${category}'`)
       }
 
-      console.log(`[DB] Templates:`, templates.map(t => ({ id: t.id, name: t.name, category: t.category })))
+      console.log(
+        `[DB] Templates:`,
+        templates.map((t) => ({ id: t.id, name: t.name, category: t.category }))
+      )
 
       return {
         success: true,
@@ -1006,11 +1056,10 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
    */
   async backup(backupPath: string): Promise<BackupResult> {
     try {
-      // @ts-ignore - Temporary fix for backup types
       const backup = this.db.backup(backupPath)
-      // @ts-ignore - Temporary fix for backup types
+      // @ts-expect-error - Temporary fix for backup types
       const pages = backup.transfer(-1, 100)
-      // @ts-ignore - Temporary fix for backup types
+      // @ts-expect-error - Temporary fix for backup types
       backup.close()
 
       return {
@@ -1030,7 +1079,10 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
    */
   async migrate(): Promise<MigrationResult> {
     try {
-      // Por ahora, solo re-ejecutar createTables para añadir nuevas tablas/índices
+      // Verificar y agregar columnas de CodebaseHQ si no existen
+      await this.addCodebaseColumnsIfMissing()
+
+      // Re-ejecutar createTables para añadir nuevas tablas/índices
       this.createTables()
 
       return {
@@ -1042,6 +1094,99 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         success: false,
         error: `Error en migración: ${(error as Error).message}`,
       }
+    }
+  }
+
+  /**
+   * Agrega columnas de CodebaseHQ a repositorios existentes si no existen
+   */
+  private async addCodebaseColumnsIfMissing(): Promise<void> {
+    try {
+      // Verificar si las columnas ya existen
+      const tableInfo = this.db.prepare('PRAGMA table_info(repositories)').all() as Array<{
+        name: string
+      }>
+      const existingColumns = tableInfo.map((col) => col.name)
+
+      const codebaseColumns = [
+        'codebase_repository_permalink',
+        'codebase_environment',
+        'codebase_servers',
+        'codebase_enabled',
+      ]
+
+      for (const column of codebaseColumns) {
+        if (!existingColumns.includes(column)) {
+          console.log(`Adding missing column: ${column}`)
+
+          let defaultValue = 'TEXT'
+          let defaultVal = ''
+
+          if (column === 'codebase_enabled') {
+            defaultValue = 'BOOLEAN DEFAULT 0'
+            defaultVal = ''
+          } else if (column === 'codebase_environment') {
+            defaultValue = "TEXT DEFAULT 'production'"
+            defaultVal = ''
+          } else {
+            defaultValue = 'TEXT'
+            defaultVal = ''
+          }
+
+          const alterSql = `ALTER TABLE repositories ADD COLUMN ${column} ${defaultValue}`
+          console.log(`Executing: ${alterSql}`)
+          this.db.exec(alterSql)
+        }
+      }
+    } catch (error) {
+      console.error('Error adding CodebaseHQ columns:', error)
+      // No lanzar error aquí para evitar que falle la inicialización
+    }
+  }
+
+  /**
+   * Asegura que la tabla de configuraciones exista con la estructura correcta
+   */
+  private ensureConfigurationsTable(): void {
+    try {
+      // Verificar si la tabla existe
+      const tableExists = this.db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='configurations'")
+        .get()
+
+      if (!tableExists) {
+        console.log('Creating configurations table...')
+        this.db.exec(`
+          CREATE TABLE configurations (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `)
+        console.log('Configurations table created successfully')
+      } else {
+        // Verificar que tenga todas las columnas necesarias
+        const tableInfo = this.db.prepare('PRAGMA table_info(configurations)').all() as Array<{
+          name: string
+        }>
+        const existingColumns = tableInfo.map((col) => col.name)
+        
+        if (!existingColumns.includes('updated_at')) {
+          console.log('Adding updated_at column to configurations table...')
+          this.db.exec('ALTER TABLE configurations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP')
+        }
+      }
+
+      // Crear trigger para updated_at si no existe
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS update_configurations_updated_at 
+        AFTER UPDATE ON configurations
+        BEGIN
+          UPDATE configurations SET updated_at = CURRENT_TIMESTAMP WHERE key = NEW.key;
+        END;
+      `)
+    } catch (error) {
+      console.error('Error ensuring configurations table:', error)
     }
   }
 
@@ -1113,7 +1258,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
       // Primero, obtener el repository_id por el nombre
       const repoStmt = this.db.prepare('SELECT id FROM repositories WHERE name = ?')
       const repo = repoStmt.get(releaseData.repository) as { id: number } | undefined
-      
+
       if (!repo) {
         return {
           success: false,
@@ -1140,11 +1285,12 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 
       // Determinar si fue inserción o actualización basado en si hubo cambios
       const action = result.changes === 1 && result.lastInsertRowid ? 'created' : 'updated'
-      
+
       // Obtener el ID del release (puede ser nuevo o existente)
       let releaseId = result.lastInsertRowid as number
       if (!releaseId) {
-        const existingRelease = this.db.prepare('SELECT id FROM releases WHERE repository_id = ? AND version = ?')
+        const existingRelease = this.db
+          .prepare('SELECT id FROM releases WHERE repository_id = ? AND version = ?')
           .get(repo.id, releaseData.version) as { id: number } | undefined
         releaseId = existingRelease?.id || 0
       }
@@ -1171,15 +1317,19 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   /**
    * Lista todos los releases con información del repositorio
    */
-  async listAllReleases(): Promise<DatabaseResult<Array<{
-    id: number
-    version: string
-    repository: string
-    template: string
-    date: string
-    content: string
-    created_at: string
-  }>>> {
+  async listAllReleases(): Promise<
+    DatabaseResult<
+      Array<{
+        id: number
+        version: string
+        repository: string
+        template: string
+        date: string
+        content: string
+        created_at: string
+      }>
+    >
+  > {
     try {
       const stmt = this.db.prepare(`
         SELECT 
@@ -1194,7 +1344,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         JOIN repositories repo ON r.repository_id = repo.id
         ORDER BY r.created_at DESC
       `)
-      
+
       const releases = stmt.all() as Array<{
         id: number
         version: string
@@ -1207,15 +1357,15 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 
       return {
         success: true,
-        data: releases.map(release => ({
+        data: releases.map((release) => ({
           id: release.id,
           version: release.version,
           repository: release.repository,
           template: release.template,
           date: release.created_at,
           content: release.content || '',
-          created_at: release.created_at
-        }))
+          created_at: release.created_at,
+        })),
       }
     } catch (error) {
       return {
@@ -1239,15 +1389,18 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   /**
    * Agrega un repositorio secundario a un repositorio principal
    */
-  async addSecondaryRepository(mainRepoId: number, secondaryRepoId: number): Promise<DatabaseResult> {
+  async addSecondaryRepository(
+    mainRepoId: number,
+    secondaryRepoId: number
+  ): Promise<DatabaseResult> {
     try {
       const stmt = this.db.prepare(`
         INSERT OR IGNORE INTO repository_relationships (main_repository_id, secondary_repository_id)
         VALUES (?, ?)
       `)
-      
+
       const result = stmt.run(mainRepoId, secondaryRepoId)
-      
+
       return { success: true }
     } catch (error) {
       return {
@@ -1260,15 +1413,18 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   /**
    * Remueve un repositorio secundario de un repositorio principal
    */
-  async removeSecondaryRepository(mainRepoId: number, secondaryRepoId: number): Promise<DatabaseResult> {
+  async removeSecondaryRepository(
+    mainRepoId: number,
+    secondaryRepoId: number
+  ): Promise<DatabaseResult> {
     try {
       const stmt = this.db.prepare(`
         DELETE FROM repository_relationships 
         WHERE main_repository_id = ? AND secondary_repository_id = ?
       `)
-      
+
       const result = stmt.run(mainRepoId, secondaryRepoId)
-      
+
       if (result.changes === 0) {
         return {
           success: false,
@@ -1288,7 +1444,9 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   /**
    * Obtiene los repositorios secundarios de un repositorio principal
    */
-  async getSecondaryRepositories(mainRepoId: number): Promise<DatabaseResult<{ repositories: Repository[] }>> {
+  async getSecondaryRepositories(
+    mainRepoId: number
+  ): Promise<DatabaseResult<{ repositories: Repository[] }>> {
     try {
       const stmt = this.db.prepare(`
         SELECT r.* 
@@ -1297,7 +1455,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         WHERE rr.main_repository_id = ? AND r.active = 1
         ORDER BY r.name
       `)
-      
+
       const repositories = stmt.all(mainRepoId) as Repository[]
 
       return {
@@ -1322,7 +1480,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         WHERE is_main_repository = 1 AND active = 1 
         ORDER BY name
       `)
-      
+
       const repositories = stmt.all() as Repository[]
 
       return {
@@ -1340,23 +1498,26 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   /**
    * Obtiene todos los repositorios secundarios disponibles (que no son principales)
    */
-  async getAvailableSecondaryRepositories(excludeMainRepoId?: number): Promise<DatabaseResult<{ repositories: Repository[] }>> {
+  async getAvailableSecondaryRepositories(
+    excludeMainRepoId?: number
+  ): Promise<DatabaseResult<{ repositories: Repository[] }>> {
     try {
       let query = `
         SELECT * FROM repositories 
         WHERE is_main_repository = 0 AND active = 1
       `
       const params: any[] = []
-      
+
       if (excludeMainRepoId) {
         query += ` AND id != ?`
         params.push(excludeMainRepoId)
       }
-      
+
       query += ` ORDER BY name`
-      
+
       const stmt = this.db.prepare(query)
-      const repositories = params.length > 0 ? stmt.all(...params) as Repository[] : stmt.all() as Repository[]
+      const repositories =
+        params.length > 0 ? (stmt.all(...params) as Repository[]) : (stmt.all() as Repository[])
 
       return {
         success: true,
@@ -1373,26 +1534,31 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   /**
    * Actualiza múltiples relaciones de repositorio secundario
    */
-  async updateSecondaryRepositories(mainRepoId: number, secondaryRepoIds: number[]): Promise<DatabaseResult> {
+  async updateSecondaryRepositories(
+    mainRepoId: number,
+    secondaryRepoIds: number[]
+  ): Promise<DatabaseResult> {
     try {
       const transaction = this.db.transaction(() => {
         // Eliminar relaciones existentes
-        const deleteStmt = this.db.prepare('DELETE FROM repository_relationships WHERE main_repository_id = ?')
+        const deleteStmt = this.db.prepare(
+          'DELETE FROM repository_relationships WHERE main_repository_id = ?'
+        )
         deleteStmt.run(mainRepoId)
-        
+
         // Agregar nuevas relaciones
         const insertStmt = this.db.prepare(`
           INSERT INTO repository_relationships (main_repository_id, secondary_repository_id)
           VALUES (?, ?)
         `)
-        
+
         for (const secondaryId of secondaryRepoIds) {
           insertStmt.run(mainRepoId, secondaryId)
         }
       })
-      
+
       transaction()
-      
+
       return { success: true }
     } catch (error) {
       return {
@@ -1416,6 +1582,25 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
       inMemory: this.db.memory,
       readonly: this.db.readonly,
       name: this.db.name,
+    }
+  }
+
+  /**
+   * Obtiene la estructura de la tabla repositories para debugging
+   */
+  getTableStructure(): Array<{
+    cid: number
+    name: string
+    type: string
+    notnull: number
+    dflt_value: any
+    pk: number
+  }> {
+    try {
+      return this.db.prepare('PRAGMA table_info(repositories)').all() as any[]
+    } catch (error) {
+      console.error('Error getting table structure:', error)
+      return []
     }
   }
 }

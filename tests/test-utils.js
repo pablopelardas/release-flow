@@ -54,7 +54,8 @@ export const mockElectronAPI = {
   writeFile: () => Promise.resolve({ success: true }),
 
   // Git operations
-  gitStatus: () => Promise.resolve({ success: true, data: { isClean: true, currentBranch: 'main' } }),
+  gitStatus: () =>
+    Promise.resolve({ success: true, data: { isClean: true, currentBranch: 'main' } }),
   gitValidateRepository: () => Promise.resolve({ success: true, data: { isValid: true } }),
   gitCreateTag: () => Promise.resolve({ success: true, data: { name: 'v1.0.0' } }),
   gitGetTags: () => Promise.resolve({ success: true, data: ['v1.0.0', 'v0.9.0'] }),
@@ -81,7 +82,8 @@ export const mockElectronAPI = {
 
   // Release operations
   releaseValidatePrerequisites: () => Promise.resolve({ success: true, data: { valid: true } }),
-  releaseGenerateChangelog: () => Promise.resolve({ success: true, data: { changelog: 'Changelog' } }),
+  releaseGenerateChangelog: () =>
+    Promise.resolve({ success: true, data: { changelog: 'Changelog' } }),
   releaseCreate: () => Promise.resolve({ success: true, data: { tag: 'v1.0.0' } }),
   releaseGetHistory: () => Promise.resolve({ success: true, data: [] }),
   releaseSuggestVersion: () => Promise.resolve({ success: true, data: '1.1.0' }),

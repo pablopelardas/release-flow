@@ -15,7 +15,7 @@ export const useAppStore = defineStore('app', {
   getters: {
     hasError: (state) => state.error !== null,
     hasNotifications: (state) => state.notifications.length > 0,
-    unreadNotifications: (state) => state.notifications.filter(n => !n.read),
+    unreadNotifications: (state) => state.notifications.filter((n) => !n.read),
   },
 
   actions: {
@@ -39,9 +39,9 @@ export const useAppStore = defineStore('app', {
         type: 'info',
         ...notification,
       }
-      
+
       this.notifications.unshift(newNotification)
-      
+
       // Limitar a 50 notificaciones
       if (this.notifications.length > 50) {
         this.notifications = this.notifications.slice(0, 50)
@@ -49,7 +49,7 @@ export const useAppStore = defineStore('app', {
     },
 
     markNotificationAsRead(id) {
-      const notification = this.notifications.find(n => n.id === id)
+      const notification = this.notifications.find((n) => n.id === id)
       if (notification) {
         notification.read = true
       }
@@ -66,40 +66,39 @@ export const useAppStore = defineStore('app', {
     async initializeApp() {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         // Inicializar todos los stores necesarios
         const { useSettingsStore } = await import('./settings.js')
         const { useRepositoriesStore } = await import('./repositories.js')
         const { useTemplatesStore } = await import('./templates.js')
-        
+
         const settingsStore = useSettingsStore()
         const repositoriesStore = useRepositoriesStore()
         const templatesStore = useTemplatesStore()
-        
+
         // Cargar configuraciones primero
         await settingsStore.loadSettings()
-        
+
         // Configurar auto-save
         settingsStore.setupAutoSave()
-        
+
         // Cargar datos iniciales en paralelo
         await Promise.all([
           repositoriesStore.loadRepositories(),
           templatesStore.loadTemplates(),
           templatesStore.loadPredefinedTemplates(),
         ])
-        
+
         this.addNotification({
           type: 'success',
           title: 'Aplicación iniciada',
           message: 'ReleaseFlow se ha inicializado correctamente',
         })
-        
       } catch (error) {
         console.error('Error initializing app:', error)
         this.setError(error.message)
-        
+
         this.addNotification({
           type: 'error',
           title: 'Error de inicialización',
@@ -113,9 +112,9 @@ export const useAppStore = defineStore('app', {
 
     async handleGlobalError(error, context = 'Unknown') {
       console.error(`Global error in ${context}:`, error)
-      
+
       this.setError(error.message || 'Error desconocido')
-      
+
       this.addNotification({
         type: 'error',
         title: `Error en ${context}`,
@@ -125,8 +124,8 @@ export const useAppStore = defineStore('app', {
   },
 })
 
+export { useReleasesStore } from './releases.js'
 // Re-exportar todos los stores para fácil acceso
 export { useRepositoriesStore } from './repositories.js'
-export { useTemplatesStore } from './templates.js'
-export { useReleasesStore } from './releases.js'
 export { useSettingsStore } from './settings.js'
+export { useTemplatesStore } from './templates.js'

@@ -6,34 +6,34 @@ export const useSettingsStore = defineStore('settings', {
       // Tema y UI
       theme: 'light',
       language: 'es',
-      
+
       // Comportamiento de la aplicación
       autoSave: true,
       autoSaveInterval: 30000, // 30 segundos
       notifications: true,
       confirmDestructiveActions: true,
-      
+
       // Git y Repositorios
       defaultBranch: 'main',
       autoCommit: false,
       commitMessageTemplate: 'Release v{{version}}',
-      
+
       // Templates
       defaultTemplateCategory: 'release',
       templatePreviewAutoRefresh: true,
-      
+
       // Releases
       defaultVersionType: 'minor',
       autoCreateTags: true,
       tagPrefix: 'v',
       autoSaveReleaseNotes: true,
-      
+
       // Paths y archivos
       defaultExportPath: '',
       backupEnabled: true,
       backupInterval: 86400000, // 24 horas
     },
-    
+
     loading: false,
     error: null,
     unsavedChanges: false,
@@ -42,7 +42,7 @@ export const useSettingsStore = defineStore('settings', {
   getters: {
     isDarkTheme: (state) => state.settings.theme === 'dark',
     hasUnsavedChanges: (state) => state.unsavedChanges,
-    
+
     getSettingValue: (state) => (key) => {
       return key.split('.').reduce((obj, k) => obj?.[k], state.settings)
     },
@@ -64,11 +64,11 @@ export const useSettingsStore = defineStore('settings', {
     async loadSettings() {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         // Cargar todas las configuraciones desde la base de datos
         const response = await window.electronAPI.dbGetConfig('all')
-        
+
         if (response.success && response.data.value) {
           const dbSettings = JSON.parse(response.data.value)
           this.settings = { ...this.settings, ...dbSettings }
@@ -84,18 +84,18 @@ export const useSettingsStore = defineStore('settings', {
 
     async saveSetting(key, value) {
       this.clearError()
-      
+
       try {
         // Actualizar en el estado local
         this.setSetting(key, value)
-        
+
         // Guardar configuración específica
         const response = await window.electronAPI.dbSetConfig(key, JSON.stringify(value))
-        
+
         if (!response.success) {
           throw new Error(response.error || 'Error saving setting')
         }
-        
+
         this.unsavedChanges = false
       } catch (error) {
         console.error('Error saving setting:', error)
@@ -107,11 +107,11 @@ export const useSettingsStore = defineStore('settings', {
     async saveAllSettings() {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         // Guardar todas las configuraciones como un objeto
         const response = await window.electronAPI.dbSetConfig('all', JSON.stringify(this.settings))
-        
+
         if (response.success) {
           this.unsavedChanges = false
         } else {
@@ -130,14 +130,14 @@ export const useSettingsStore = defineStore('settings', {
       // Soporte para claves anidadas como 'ui.theme'
       const keys = key.split('.')
       let current = this.settings
-      
+
       for (let i = 0; i < keys.length - 1; i++) {
         if (!(keys[i] in current)) {
           current[keys[i]] = {}
         }
         current = current[keys[i]]
       }
-      
+
       current[keys[keys.length - 1]] = value
       this.unsavedChanges = true
     },
@@ -149,7 +149,7 @@ export const useSettingsStore = defineStore('settings', {
 
     async resetSettings() {
       this.clearError()
-      
+
       try {
         // Resetear al estado inicial
         const defaultSettings = {
@@ -172,7 +172,7 @@ export const useSettingsStore = defineStore('settings', {
           backupEnabled: true,
           backupInterval: 86400000,
         }
-        
+
         this.settings = defaultSettings
         await this.saveAllSettings()
       } catch (error) {
@@ -184,15 +184,15 @@ export const useSettingsStore = defineStore('settings', {
 
     async exportSettings(filePath) {
       this.clearError()
-      
+
       try {
         const settingsJson = JSON.stringify(this.settings, null, 2)
         const response = await window.electronAPI.writeFile(filePath, settingsJson)
-        
+
         if (!response.success) {
           throw new Error(response.error || 'Error exporting settings')
         }
-        
+
         return true
       } catch (error) {
         console.error('Error exporting settings:', error)
@@ -203,15 +203,15 @@ export const useSettingsStore = defineStore('settings', {
 
     async importSettings(filePath) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.readFile(filePath)
-        
+
         if (response.success) {
           const importedSettings = JSON.parse(response.content)
           this.settings = { ...this.settings, ...importedSettings }
           await this.saveAllSettings()
-          
+
           return true
         } else {
           throw new Error(response.error || 'Error reading settings file')

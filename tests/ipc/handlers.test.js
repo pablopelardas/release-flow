@@ -97,7 +97,7 @@ describe('IPC Handlers', () => {
     it('debe manejar write-file correctamente', async () => {
       const filePath = '/test/file.txt'
       const content = 'contenido a escribir'
-      
+
       mockFs.writeFile.mockResolvedValue(undefined)
 
       expect(mockFs.writeFile).toBeDefined()
@@ -118,7 +118,7 @@ describe('IPC Handlers', () => {
         ahead: 0,
         behind: 0,
       }
-      
+
       mockGitService.getStatus.mockResolvedValue(mockStatus)
 
       expect(mockGitService.getStatus).toBeDefined()
@@ -127,7 +127,7 @@ describe('IPC Handlers', () => {
     it('debe manejar git-commit correctamente', async () => {
       const repoPath = '/test/repo'
       const message = 'test commit'
-      
+
       mockGitService.commit.mockResolvedValue({
         commit: 'abc123',
         summary: { changes: 1, insertions: 5, deletions: 0 },
@@ -140,7 +140,7 @@ describe('IPC Handlers', () => {
       const repoPath = '/test/repo'
       const tagName = 'v1.0.0'
       const message = 'Release v1.0.0'
-      
+
       mockGitService.createTag.mockResolvedValue({ name: tagName })
 
       expect(mockGitService.createTag).toBeDefined()
@@ -158,7 +158,7 @@ describe('IPC Handlers', () => {
       const template = 'Hola {{ name }}'
       const data = { name: 'mundo' }
       const expected = 'Hola mundo'
-      
+
       mockTemplateService.render.mockResolvedValue(expected)
 
       expect(mockTemplateService.render).toBeDefined()
@@ -166,7 +166,7 @@ describe('IPC Handlers', () => {
 
     it('debe manejar validate-template correctamente', async () => {
       const template = '{{ valid.template }}'
-      
+
       mockTemplateService.validate.mockResolvedValue({
         valid: true,
         errors: [],
@@ -177,7 +177,7 @@ describe('IPC Handlers', () => {
 
     it('debe manejar templates inválidos', async () => {
       const invalidTemplate = '{{ invalid syntax'
-      
+
       mockTemplateService.validate.mockResolvedValue({
         valid: false,
         errors: ['Syntax error: unclosed tag'],
@@ -191,7 +191,7 @@ describe('IPC Handlers', () => {
         { id: 1, name: 'Basic Release', content: '# Release {{ version }}' },
         { id: 2, name: 'Full Release', content: '# Release Notes {{ version }}' },
       ]
-      
+
       mockTemplateService.getAvailableTemplates.mockResolvedValue(mockTemplates)
 
       expect(mockTemplateService.getAvailableTemplates).toBeDefined()
@@ -206,7 +206,7 @@ describe('IPC Handlers', () => {
         { id: 1, name: 'repo1', path: '/test/repo1' },
         { id: 2, name: 'repo2', path: '/test/repo2' },
       ]
-      
+
       mockDatabaseService.query.mockResolvedValue(mockResults)
 
       expect(mockDatabaseService.query).toBeDefined()
@@ -215,7 +215,7 @@ describe('IPC Handlers', () => {
     it('debe manejar db-insert correctamente', async () => {
       const table = 'repositories'
       const data = { name: 'nuevo-repo', path: '/test/nuevo-repo' }
-      
+
       mockDatabaseService.insert.mockResolvedValue({ id: 3 })
 
       expect(mockDatabaseService.insert).toBeDefined()
@@ -225,7 +225,7 @@ describe('IPC Handlers', () => {
       const table = 'templates'
       const id = 1
       const data = { content: 'contenido actualizado' }
-      
+
       mockDatabaseService.update.mockResolvedValue({ changes: 1 })
 
       expect(mockDatabaseService.update).toBeDefined()
@@ -233,7 +233,7 @@ describe('IPC Handlers', () => {
 
     it('debe manejar errores de base de datos', async () => {
       const invalidQuery = 'INVALID SQL'
-      
+
       mockDatabaseService.query.mockRejectedValue(new Error('Syntax error en SQL'))
 
       expect(mockDatabaseService.query).toBeDefined()
@@ -247,13 +247,13 @@ describe('IPC Handlers', () => {
         version: '1.0.0',
         template: 'basic',
       }
-      
+
       const mockRelease = {
         version: '1.0.0',
         notes: '# Release 1.0.0\n\n- Nueva funcionalidad',
         tag: 'v1.0.0',
       }
-      
+
       mockReleaseService.generateRelease.mockResolvedValue(mockRelease)
 
       expect(mockReleaseService.generateRelease).toBeDefined()
@@ -266,7 +266,7 @@ describe('IPC Handlers', () => {
         notes: 'Release notes',
         createTag: true,
       }
-      
+
       mockReleaseService.createRelease.mockResolvedValue({
         success: true,
         tag: 'v1.1.0',
@@ -279,7 +279,7 @@ describe('IPC Handlers', () => {
     it('debe obtener versiones disponibles', async () => {
       const repoPath = '/test/repo'
       const mockVersions = ['1.0.0', '0.9.0', '0.8.1']
-      
+
       mockReleaseService.getVersions.mockResolvedValue(mockVersions)
 
       expect(mockReleaseService.getVersions).toBeDefined()
@@ -289,7 +289,7 @@ describe('IPC Handlers', () => {
   describe('System Handlers', () => {
     it('debe manejar show-in-explorer correctamente', async () => {
       const folderPath = '/test/folder'
-      
+
       mockShell.showItemInFolder.mockResolvedValue(undefined)
 
       expect(mockShell.showItemInFolder).toBeDefined()
@@ -297,7 +297,7 @@ describe('IPC Handlers', () => {
 
     it('debe manejar open-external correctamente', async () => {
       const url = 'https://github.com/test/repo'
-      
+
       mockShell.openExternal.mockResolvedValue(undefined)
 
       expect(mockShell.openExternal).toBeDefined()
@@ -306,21 +306,21 @@ describe('IPC Handlers', () => {
     it('debe manejar get-config correctamente', async () => {
       const key = 'defaultTemplate'
       const value = 'basic-release'
-      
+
       // Mock para configuración
       const mockConfig = { [key]: value }
-      
+
       expect(mockConfig[key]).toBe(value)
     })
 
     it('debe manejar set-config correctamente', async () => {
       const key = 'theme'
       const value = 'dark'
-      
+
       // Mock para guardar configuración
       const mockSaveConfig = vi.fn()
       mockSaveConfig.mockResolvedValue(true)
-      
+
       expect(mockSaveConfig).toBeDefined()
     })
   })
@@ -328,7 +328,7 @@ describe('IPC Handlers', () => {
   describe('Error Handling', () => {
     it('debe manejar errores de IPC correctamente', async () => {
       const error = new Error('IPC communication error')
-      
+
       // Test que los errores se manejen apropiadamente
       expect(error).toBeInstanceOf(Error)
       expect(error.message).toBe('IPC communication error')
@@ -337,7 +337,7 @@ describe('IPC Handlers', () => {
     it('debe validar parámetros de entrada', async () => {
       // Test para validación de parámetros
       const invalidParams = null
-      
+
       expect(invalidParams).toBeNull()
     })
 
@@ -346,7 +346,7 @@ describe('IPC Handlers', () => {
       const longOperation = new Promise((resolve) => {
         setTimeout(resolve, 100)
       })
-      
+
       await expect(longOperation).resolves.toBeUndefined()
     })
   })

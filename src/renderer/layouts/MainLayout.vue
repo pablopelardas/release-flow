@@ -67,6 +67,34 @@
               Releases
             </router-link>
           </li>
+          <li>
+            <router-link
+              :to="{ path: '/activity' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/activity'
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
+            >
+              <i class="pi pi-chart-line mr-3"></i>
+              Actividad
+            </router-link>
+          </li>
+          <li>
+            <router-link
+              :to="{ path: '/settings' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/settings'
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
+            >
+              <i class="pi pi-cog mr-3"></i>
+              Configuración
+            </router-link>
+          </li>
         </ul>
       </nav>
     </aside>

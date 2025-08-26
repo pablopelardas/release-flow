@@ -49,6 +49,14 @@
             <span class="text-sm text-gray-600 dark:text-gray-400">Prefijo de Tag:</span>
             <span class="text-sm text-gray-900 dark:text-white font-mono">{{ repo.tag_prefix }}</span>
           </div>
+          
+          <div v-if="repo.codebase_enabled" class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-gray-400">CodebaseHQ:</span>
+            <div class="flex items-center space-x-2">
+              <i class="pi pi-cloud-upload text-purple-500"></i>
+              <span class="text-sm text-purple-600 dark:text-purple-400">{{ repo.codebase_environment }}</span>
+            </div>
+          </div>
         </div>
         
         <div class="flex space-x-2 mt-4">
@@ -80,6 +88,17 @@
           >
             <span>⚙️</span>
             <span>Configurar Repos Secundarios</span>
+          </button>
+        </div>
+        
+        <!-- Configure CodebaseHQ Button -->
+        <div class="mt-3">
+          <button 
+            @click="configureCodebaseHQ(repo)"
+            class="w-full bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 py-2 rounded text-sm transition-colors flex items-center justify-center space-x-2"
+          >
+            <i class="pi pi-cloud-upload"></i>
+            <span>Configurar CodebaseHQ</span>
           </button>
         </div>
       </div>
@@ -161,6 +180,59 @@
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Los repositorios principales pueden tener repositorios secundarios donde se replicarán exactamente los mismos tags (con el mismo prefijo)
             </p>
+          </div>
+
+          <!-- CodebaseHQ Configuration -->
+          <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+            <div class="flex items-center mb-3">
+              <input 
+                type="checkbox"
+                v-model="newRepoCodebaseEnabled" 
+                class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <i class="pi pi-cloud-upload mr-1 text-purple-500"></i>
+                Habilitar deployments en CodebaseHQ
+              </label>
+            </div>
+            
+            <div v-if="newRepoCodebaseEnabled" class="space-y-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Repository Permalink en CodebaseHQ
+                </label>
+                <input 
+                  v-model="newRepoCodebasePermalink" 
+                  placeholder="ej: omint" 
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                />
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  URL será: https://api3.codebasehq.com/Clever/<strong>{{ newRepoCodebasePermalink || 'repo' }}</strong>/deployments
+                </p>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Environment
+                </label>
+                <input 
+                  v-model="newRepoCodebaseEnvironment" 
+                  placeholder="ej: TurnosOmintWebAPI, production" 
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Servers (separados por coma)
+                </label>
+                <input 
+                  v-model="newRepoCodebaseServers" 
+                  placeholder="ej: vturnoscli.omint.ad, server2.domain.com" 
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                />
+              </div>
+            </div>
           </div>
         </div>
         
@@ -248,6 +320,84 @@
         </div>
       </div>
     </div>
+
+    <!-- Configure CodebaseHQ Modal -->
+    <div v-if="showConfigureCodebaseDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96 max-w-full">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Configurar CodebaseHQ
+        </h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Para: <span class="font-semibold">{{ selectedCodebaseRepo?.name }}</span>
+        </p>
+        
+        <div class="space-y-4">
+          <div class="flex items-center">
+            <input 
+              type="checkbox"
+              v-model="editCodebaseEnabled" 
+              class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+            />
+            <label class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              Habilitar deployments en CodebaseHQ
+            </label>
+          </div>
+          
+          <div v-if="editCodebaseEnabled" class="space-y-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Repository Permalink
+              </label>
+              <input 
+                v-model="editCodebasePermalink" 
+                placeholder="ej: omint" 
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                URL: https://api3.codebasehq.com/Clever/<strong>{{ editCodebasePermalink || 'repo' }}</strong>/deployments
+              </p>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Environment
+              </label>
+              <input 
+                v-model="editCodebaseEnvironment" 
+                placeholder="ej: TurnosOmintWebAPI" 
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Servers (separados por coma)
+              </label>
+              <input 
+                v-model="editCodebaseServers" 
+                placeholder="ej: vturnoscli.omint.ad" 
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex space-x-3 mt-6">
+          <button 
+            @click="cancelConfigureCodebase" 
+            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            @click="saveCodebaseConfig" 
+            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -264,12 +414,24 @@ const newRepoPath = ref('')
 const newRepoName = ref('')
 const newRepoTagPrefix = ref('')
 const newRepoIsMain = ref(false)
+const newRepoCodebaseEnabled = ref(false)
+const newRepoCodebasePermalink = ref('')
+const newRepoCodebaseEnvironment = ref('production')
+const newRepoCodebaseServers = ref('vturnoscli.omint.ad')
 
 // Secondary repositories configuration
 const showConfigureSecondariesDialog = ref(false)
 const selectedMainRepo = ref(null)
 const availableSecondaryRepos = ref([])
 const selectedSecondaryRepoIds = ref([])
+
+// CodebaseHQ configuration
+const showConfigureCodebaseDialog = ref(false)
+const selectedCodebaseRepo = ref(null)
+const editCodebaseEnabled = ref(false)
+const editCodebasePermalink = ref('')
+const editCodebaseEnvironment = ref('')
+const editCodebaseServers = ref('')
 
 // Computed properties
 const repositories = computed(() => repositoriesStore.repositories)
@@ -296,7 +458,11 @@ const addRepository = async () => {
       name: newRepoName.value || newRepoPath.value.split(/[/\\]/).pop(),
       path: newRepoPath.value,
       tag_prefix: newRepoTagPrefix.value || '',
-      is_main_repository: newRepoIsMain.value
+      is_main_repository: newRepoIsMain.value,
+      codebase_enabled: newRepoCodebaseEnabled.value,
+      codebase_repository_permalink: newRepoCodebasePermalink.value || '',
+      codebase_environment: newRepoCodebaseEnvironment.value || 'production',
+      codebase_servers: newRepoCodebaseServers.value || ''
     }
 
     await repositoriesStore.addRepository(repoData)
@@ -306,6 +472,10 @@ const addRepository = async () => {
     newRepoName.value = ''
     newRepoTagPrefix.value = ''
     newRepoIsMain.value = false
+    newRepoCodebaseEnabled.value = false
+    newRepoCodebasePermalink.value = ''
+    newRepoCodebaseEnvironment.value = 'production'
+    newRepoCodebaseServers.value = 'vturnoscli.omint.ad'
     showAddDialog.value = false
   } catch (error) {
     console.error('Error adding repository:', error)
@@ -413,6 +583,64 @@ const saveSecondaryRepos = async () => {
   } catch (error) {
     console.error('❌ Error saving secondary repositories:', error)
     alert(`Error saving secondary repositories: ${error.message}`)
+  }
+}
+
+const configureCodebaseHQ = (repo) => {
+  selectedCodebaseRepo.value = { ...repo }
+  editCodebaseEnabled.value = repo.codebase_enabled || false
+  editCodebasePermalink.value = repo.codebase_repository_permalink || ''
+  editCodebaseEnvironment.value = repo.codebase_environment || 'production'
+  editCodebaseServers.value = repo.codebase_servers || ''
+  showConfigureCodebaseDialog.value = true
+}
+
+const cancelConfigureCodebase = () => {
+  showConfigureCodebaseDialog.value = false
+  selectedCodebaseRepo.value = null
+  editCodebaseEnabled.value = false
+  editCodebasePermalink.value = ''
+  editCodebaseEnvironment.value = ''
+  editCodebaseServers.value = ''
+}
+
+const saveCodebaseConfig = async () => {
+  try {
+    if (!selectedCodebaseRepo.value) return
+    
+    // Debug: verificar estructura de tabla
+    const tableStructure = await window.electronAPI.dbGetTableStructure()
+    console.log('Table structure:', tableStructure)
+    
+    const updates = {
+      codebase_enabled: editCodebaseEnabled.value ? 1 : 0, // Convertir boolean a integer para SQLite
+      codebase_repository_permalink: editCodebasePermalink.value,
+      codebase_environment: editCodebaseEnvironment.value,
+      codebase_servers: editCodebaseServers.value
+    }
+    
+    console.log('Updating CodebaseHQ configuration for repo ID:', selectedCodebaseRepo.value.id)
+    console.log('Updates:', updates)
+    
+    const response = await window.electronAPI.dbUpdateRepository(selectedCodebaseRepo.value.id, updates)
+    
+    console.log('Update response:', response)
+    
+    if (response.success) {
+      console.log('✅ CodebaseHQ configuration updated successfully')
+      
+      // Actualizar el repositorio local
+      await repositoriesStore.loadRepositories()
+      cancelConfigureCodebase()
+      
+      alert('✅ Configuración de CodebaseHQ actualizada exitosamente')
+    } else {
+      console.error('❌ Error updating CodebaseHQ configuration:', response.error)
+      alert(`Error updating CodebaseHQ configuration: ${response.error}`)
+    }
+  } catch (error) {
+    console.error('❌ Error saving CodebaseHQ configuration:', error)
+    alert(`Error saving CodebaseHQ configuration: ${error.message}`)
   }
 }
 

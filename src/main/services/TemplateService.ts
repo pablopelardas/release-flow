@@ -107,13 +107,18 @@ export class TemplateService {
     this.liquid.registerFilter('detectType', (message: string) => {
       if (!message) return 'other'
       const lowerMessage = message.toLowerCase()
-      
+
       if (lowerMessage.startsWith('feat:') || lowerMessage.includes('feature:')) return 'feat'
       if (lowerMessage.startsWith('fix:') || lowerMessage.includes('bugfix:')) return 'fix'
       if (lowerMessage.startsWith('docs:') || lowerMessage.includes('doc:')) return 'docs'
-      if (lowerMessage.startsWith('chore:') || lowerMessage.startsWith('build:') || 
-          lowerMessage.startsWith('ci:') || lowerMessage.startsWith('test:')) return 'chore'
-      
+      if (
+        lowerMessage.startsWith('chore:') ||
+        lowerMessage.startsWith('build:') ||
+        lowerMessage.startsWith('ci:') ||
+        lowerMessage.startsWith('test:')
+      )
+        return 'chore'
+
       return 'other'
     })
   }
@@ -301,7 +306,6 @@ export class TemplateService {
     if (name.includes('count') || name.includes('length')) return 5
     if (name.includes('url')) return 'https://ejemplo.com'
     if (name.includes('email')) return 'ejemplo@correo.com'
-    
 
     return 'Valor de ejemplo'
   }
@@ -492,17 +496,9 @@ Generado automáticamente por ReleaseFlow`,
 {% for commit in commits %}
 {{ forloop.index }}. **{{ commit.type | default: "other" | capitalize }}:** {{ commit.message }}{% if commit.author %} - *{{ commit.author }}*{% endif %}{% if commit.date %} ({{ commit.date | formatDate }}){% endif %}
 {% endfor %}`,
-        variables: [
-          'from_version',
-          'to_version', 
-          'version',
-          'commits',
-          'start_date',
-          'end_date'
-        ],
+        variables: ['from_version', 'to_version', 'version', 'commits', 'start_date', 'end_date'],
         category: 'analysis',
       },
-
     }
   }
 

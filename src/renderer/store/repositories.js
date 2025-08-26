@@ -10,8 +10,8 @@ export const useRepositoriesStore = defineStore('repositories', {
 
   getters: {
     repositoriesCount: (state) => state.repositories.length,
-    activeRepositories: (state) => state.repositories.filter(repo => repo.active),
-    getRepositoryById: (state) => (id) => state.repositories.find(repo => repo.id === id),
+    activeRepositories: (state) => state.repositories.filter((repo) => repo.active),
+    getRepositoryById: (state) => (id) => state.repositories.find((repo) => repo.id === id),
     hasRepositories: (state) => state.repositories.length > 0,
   },
 
@@ -31,18 +31,18 @@ export const useRepositoriesStore = defineStore('repositories', {
     async loadRepositories(filters = { active: 1 }) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.dbListRepositories(filters)
-        
+
         if (response.success) {
           this.repositories = response.data.repositories || []
-          
+
           // Actualizar estado Git para repositorios que no tienen información
           for (const repo of this.repositories) {
             if (repo.current_branch === null || repo.is_clean === null) {
               // No esperar la respuesta para no bloquear la UI
-              this.refreshRepositoryStatus(repo.id).catch(error => {
+              this.refreshRepositoryStatus(repo.id).catch((error) => {
                 console.warn(`Failed to refresh status for ${repo.name}:`, error)
               })
             }
@@ -61,11 +61,13 @@ export const useRepositoriesStore = defineStore('repositories', {
     async addRepository(repositoryData) {
       this.setLoading(true)
       this.clearError()
-      
+
       try {
         // Primero validar que sea un repositorio Git válido
-        const validationResponse = await window.electronAPI.gitValidateRepository(repositoryData.path)
-        
+        const validationResponse = await window.electronAPI.gitValidateRepository(
+          repositoryData.path
+        )
+
         if (!validationResponse.success || !validationResponse.data.isValid) {
           throw new Error(validationResponse.data?.message || 'No es un repositorio Git válido')
         }
@@ -73,7 +75,7 @@ export const useRepositoriesStore = defineStore('repositories', {
         // Obtener información adicional del repositorio
         const statusResponse = await window.electronAPI.gitStatus(repositoryData.path)
         const branchResponse = await window.electronAPI.gitGetCurrentBranch(repositoryData.path)
-        
+
         const enrichedRepoData = {
           ...repositoryData,
           current_branch: branchResponse.success ? branchResponse.data : 'main',
@@ -84,13 +86,13 @@ export const useRepositoriesStore = defineStore('repositories', {
 
         // Insertar en la base de datos
         const response = await window.electronAPI.dbInsertRepository(enrichedRepoData)
-        
+
         if (response.success) {
           // Recargar la lista completa desde la base de datos para asegurar consistencia
           await this.loadRepositories()
-          
+
           // Encontrar el repositorio recién agregado
-          const newRepo = this.repositories.find(repo => repo.id === response.data.id)
+          const newRepo = this.repositories.find((repo) => repo.id === response.data.id)
           return newRepo
         } else {
           throw new Error(response.error || 'Error adding repository')
@@ -106,13 +108,13 @@ export const useRepositoriesStore = defineStore('repositories', {
 
     async updateRepository(id, updates) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.dbUpdateRepository(id, updates)
-        
+
         if (response.success) {
           // Actualizar en la lista local
-          const index = this.repositories.findIndex(repo => repo.id === id)
+          const index = this.repositories.findIndex((repo) => repo.id === id)
           if (index !== -1) {
             this.repositories[index] = { ...this.repositories[index], ...updates }
           }
@@ -128,17 +130,17 @@ export const useRepositoriesStore = defineStore('repositories', {
 
     async deleteRepository(id) {
       this.clearError()
-      
+
       try {
         const response = await window.electronAPI.dbDeleteRepository(id)
-        
+
         if (response.success) {
           // Remover de la lista local
-          const index = this.repositories.findIndex(repo => repo.id === id)
+          const index = this.repositories.findIndex((repo) => repo.id === id)
           if (index !== -1) {
             this.repositories.splice(index, 1)
           }
-          
+
           // Si era el repositorio actual, limpiar
           if (this.currentRepository?.id === id) {
             this.currentRepository = null
@@ -160,7 +162,7 @@ export const useRepositoriesStore = defineStore('repositories', {
       try {
         const statusResponse = await window.electronAPI.gitStatus(repo.path)
         const branchResponse = await window.electronAPI.gitGetCurrentBranch(repo.path)
-        
+
         const updates = {
           current_branch: branchResponse.success ? branchResponse.data : repo.current_branch,
           is_clean: statusResponse.success ? statusResponse.data.isClean : repo.is_clean,

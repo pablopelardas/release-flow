@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import path from 'node:path'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Imports de servicios reales para tests de integración
 import { DatabaseService } from '../../src/main/services/DatabaseService.ts'
@@ -17,7 +17,7 @@ describe('IPC Integration Tests', () => {
     // Crear instancias reales de servicios para tests de integración
     databaseService = new DatabaseService(':memory:') // Base de datos en memoria para tests
     await databaseService.initialize()
-    
+
     gitService = new GitService()
     templateService = new TemplateService()
     releaseService = new ReleaseService(gitService, templateService)
@@ -35,7 +35,7 @@ describe('IPC Integration Tests', () => {
 
     it('debe manejar repositorios inválidos en IPC', async () => {
       const invalidPath = '/path/does/not/exist'
-      
+
       try {
         await gitService.validateRepository(invalidPath)
       } catch (error) {
@@ -55,7 +55,7 @@ describe('IPC Integration Tests', () => {
     it('debe integrar templateService con handlers IPC', async () => {
       const template = 'Hello {{ name }}!'
       const data = { name: 'World' }
-      
+
       const result = await templateService.renderTemplate(template, data)
       expect(result).toBeDefined()
       expect(result.success).toBe(true)
@@ -64,14 +64,14 @@ describe('IPC Integration Tests', () => {
     it('debe validar templates a través de IPC', async () => {
       const validTemplate = '{{ version }} - {{ date }}'
       const validation = await templateService.validateTemplate(validTemplate)
-      
+
       expect(validation).toBeDefined()
       expect(validation.isValid).toBe(true)
     })
 
     it('debe detectar templates inválidos', async () => {
       const invalidTemplate = '{{ unclosed.tag'
-      
+
       const validation = await templateService.validateTemplate(invalidTemplate)
       expect(validation).toBeDefined()
       expect(validation.isValid).toBe(false)
@@ -80,7 +80,7 @@ describe('IPC Integration Tests', () => {
     it('debe previsualizar templates', async () => {
       const template = '# Version {{ version }}'
       const data = { version: '1.0.0' }
-      
+
       const result = await templateService.previewTemplate(template, data)
       expect(result).toBeDefined()
       expect(result.success).toBe(true)
@@ -96,7 +96,7 @@ describe('IPC Integration Tests', () => {
         current_branch: 'main',
         active: 1,
       }
-      
+
       const insertResult = await databaseService.insertRepository(repoData)
       expect(insertResult).toBeDefined()
       expect(insertResult.success).toBe(true)
@@ -111,10 +111,10 @@ describe('IPC Integration Tests', () => {
         current_branch: 'main',
         active: 1,
       })
-      
+
       // Consultar usando el método específico
       const results = await databaseService.listRepositories({ active: 1 })
-      
+
       expect(results).toBeDefined()
       expect(results.success).toBe(true)
       expect(Array.isArray(results.data.repositories)).toBe(true)
@@ -128,13 +128,13 @@ describe('IPC Integration Tests', () => {
         current_branch: 'main',
         active: 1,
       })
-      
+
       if (inserted.success) {
         // Actualizar
         const updateResult = await databaseService.updateRepository(inserted.data.id, {
           current_branch: 'develop',
         })
-        
+
         expect(updateResult).toBeDefined()
         // Puede fallar si el repositorio no existe, pero debe devolver algo
         expect(updateResult).toHaveProperty('success')
@@ -147,7 +147,7 @@ describe('IPC Integration Tests', () => {
     it('debe manejar configuraciones', async () => {
       await databaseService.setConfig('test_key', 'test_value')
       const config = await databaseService.getConfig('test_key')
-      
+
       expect(config).toBeDefined()
       expect(config.success).toBe(true)
       expect(config.data.value).toBe('test_value')
@@ -169,7 +169,7 @@ describe('IPC Integration Tests', () => {
         version: '1.1.0',
         template: 'basic-release',
       }
-      
+
       try {
         const result = await releaseService.validateReleasePrerequisites(config)
         expect(result).toBeDefined()
@@ -186,7 +186,7 @@ describe('IPC Integration Tests', () => {
         toTag: 'HEAD',
         template: 'basic-release',
       }
-      
+
       try {
         const changelog = await releaseService.generateChangelog(config)
         expect(changelog).toBeDefined()
@@ -199,7 +199,7 @@ describe('IPC Integration Tests', () => {
     it('debe sugerir próxima versión', async () => {
       const repoPath = '/mock/repo'
       const currentVersion = '1.0.0'
-      
+
       try {
         const suggestedVersion = await releaseService.suggestNextVersion(repoPath, currentVersion)
         expect(suggestedVersion).toBeDefined()
@@ -217,7 +217,7 @@ describe('IPC Integration Tests', () => {
       expect(templateService).toBeDefined()
       expect(databaseService).toBeDefined()
       expect(releaseService).toBeDefined()
-      
+
       // Test métodos principales
       expect(typeof gitService.getStatus).toBe('function')
       expect(typeof templateService.renderTemplate).toBe('function')
@@ -231,7 +231,7 @@ describe('IPC Integration Tests', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Error)
       }
-      
+
       try {
         await templateService.validateTemplate('{{ invalid syntax')
       } catch (error) {
@@ -256,7 +256,7 @@ describe('IPC Integration Tests', () => {
         version: '1.0.0',
         template: 'basic-release',
       }
-      
+
       expect(typeof validData.repoPath).toBe('string')
       expect(typeof validData.version).toBe('string')
       expect(typeof validData.template).toBe('string')
@@ -265,7 +265,7 @@ describe('IPC Integration Tests', () => {
     it('debe manejar operaciones async en IPC', async () => {
       // Test para operaciones asíncronas
       const asyncOperation = () => Promise.resolve('completed')
-      
+
       const result = await asyncOperation()
       expect(result).toBe('completed')
     })

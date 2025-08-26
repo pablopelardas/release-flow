@@ -1,13 +1,13 @@
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-
+import { CodebaseHQService } from './services/CodebaseHQService.js'
+import { DatabaseService } from './services/DatabaseService.js'
 // Importar servicios TypeScript
 import { GitService } from './services/GitService.js'
-import { TemplateService } from './services/TemplateService.js'
 import { ReleaseService } from './services/ReleaseService.js'
-import { DatabaseService } from './services/DatabaseService.js'
+import { TemplateService } from './services/TemplateService.js'
 
 // Para ES modules
 const __filename = fileURLToPath(import.meta.url)
@@ -24,6 +24,7 @@ let gitService: GitService | null = null
 let templateService: TemplateService | null = null
 let releaseService: ReleaseService | null = null
 let databaseService: DatabaseService | null = null
+let codebaseHQService: CodebaseHQService | null = null
 
 function createWindow() {
   // Crear ventana principal del navegador
@@ -194,21 +195,24 @@ async function initializeServices() {
     // Inicializar servicios
     gitService = new GitService()
     templateService = new TemplateService()
-    
+
     // Inicializar base de datos - usar archivo persistente también en desarrollo
     const dbPath = isDev ? 'releaseflow-dev.db' : path.join(__dirname, '../../data/releaseflow.db')
     databaseService = new DatabaseService(dbPath)
-    
+
     // Inicializar la base de datos
     try {
       databaseService.initialize()
     } catch (error) {
       console.warn('Warning: Could not initialize database:', error)
     }
-    
+
     // Inicializar ReleaseService sin dependencias
     releaseService = new ReleaseService()
-    
+
+    // Inicializar CodebaseHQService
+    codebaseHQService = new CodebaseHQService()
+
     console.log('Servicios inicializados correctamente')
     return true
   } catch (error) {
@@ -319,16 +323,23 @@ ipcMain.handle('git-get-commits-since-last-tag', async (_event, repoPath) => {
   }
 })
 
-ipcMain.handle('git-get-commits-for-release-type', async (_event, repoPath, currentVersion, releaseType) => {
-  try {
-    if (!gitService) throw new Error('GitService no inicializado')
-    const result = await gitService.getCommitsForReleaseType(repoPath, currentVersion, releaseType)
-    return result
-  } catch (error) {
-    console.error('Error en git-get-commits-for-release-type:', error)
-    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+ipcMain.handle(
+  'git-get-commits-for-release-type',
+  async (_event, repoPath, currentVersion, releaseType) => {
+    try {
+      if (!gitService) throw new Error('GitService no inicializado')
+      const result = await gitService.getCommitsForReleaseType(
+        repoPath,
+        currentVersion,
+        releaseType
+      )
+      return result
+    } catch (error) {
+      console.error('Error en git-get-commits-for-release-type:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+    }
   }
-})
+)
 
 ipcMain.handle('git-push-tags', async (_event, repoPath, remote = 'origin') => {
   try {
@@ -503,7 +514,7 @@ ipcMain.handle('db-set-config', async (_event, key, value) => {
   try {
     if (!databaseService) throw new Error('DatabaseService no inicializado')
     const result = await databaseService.setConfig(key, value)
-    return { success: true, data: result }
+    return result
   } catch (error) {
     console.error('Error en db-set-config:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
@@ -514,7 +525,7 @@ ipcMain.handle('db-get-config', async (_event, key) => {
   try {
     if (!databaseService) throw new Error('DatabaseService no inicializado')
     const result = await databaseService.getConfig(key)
-    return { success: true, data: result }
+    return result
   } catch (error) {
     console.error('Error en db-get-config:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
@@ -581,13 +592,18 @@ ipcMain.handle('db-get-available-secondary-repositories', async (_event, exclude
 ipcMain.handle('db-update-secondary-repositories', async (_event, mainRepoId, secondaryRepoIds) => {
   try {
     if (!databaseService) throw new Error('DatabaseService no inicializado')
-    
+
     console.log('IPC Handler - Update secondary repositories:', {
       mainRepoId: typeof mainRepoId + ' ' + mainRepoId,
-      secondaryRepoIds: Array.isArray(secondaryRepoIds) ? secondaryRepoIds.map(id => typeof id + ' ' + id) : secondaryRepoIds
+      secondaryRepoIds: Array.isArray(secondaryRepoIds)
+        ? secondaryRepoIds.map((id) => typeof id + ' ' + id)
+        : secondaryRepoIds,
     })
-    
-    const result = await databaseService.updateSecondaryRepositories(Number(mainRepoId), secondaryRepoIds.map(id => Number(id)))
+
+    const result = await databaseService.updateSecondaryRepositories(
+      Number(mainRepoId),
+      secondaryRepoIds.map((id) => Number(id))
+    )
     return result
   } catch (error) {
     console.error('Error en db-update-secondary-repositories:', error)
@@ -652,22 +668,25 @@ ipcMain.handle('release-suggest-version', async (_event, repoPath, currentVersio
 })
 
 // Manejadores IPC para changelog unificado
-ipcMain.handle('release-collect-multi-repository-data', async (_event, mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion) => {
-  try {
-    if (!releaseService) throw new Error('ReleaseService no inicializado')
-    const result = await releaseService.collectMultiRepositoryData(
-      mainRepoId,
-      mainRepoName,
-      mainRepoPath,
-      secondaryRepositories,
-      targetVersion
-    )
-    return { success: true, data: result }
-  } catch (error) {
-    console.error('Error en release-collect-multi-repository-data:', error)
-    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+ipcMain.handle(
+  'release-collect-multi-repository-data',
+  async (_event, mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion) => {
+    try {
+      if (!releaseService) throw new Error('ReleaseService no inicializado')
+      const result = await releaseService.collectMultiRepositoryData(
+        mainRepoId,
+        mainRepoName,
+        mainRepoPath,
+        secondaryRepositories,
+        targetVersion
+      )
+      return { success: true, data: result }
+    } catch (error) {
+      console.error('Error en release-collect-multi-repository-data:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+    }
   }
-})
+)
 
 ipcMain.handle('release-generate-unified-changelog', async (_event, unifiedData, templateOrId) => {
   try {
@@ -676,6 +695,75 @@ ipcMain.handle('release-generate-unified-changelog', async (_event, unifiedData,
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en release-generate-unified-changelog:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+// CodebaseHQ Service Handlers
+ipcMain.handle('codebase-create-deployment', async (_event, config, deployment) => {
+  try {
+    if (!codebaseHQService) throw new Error('CodebaseHQService no inicializado')
+    const result = await codebaseHQService.createDeployment(config, deployment)
+    return result
+  } catch (error) {
+    console.error('Error en codebase-create-deployment:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('codebase-test-connection', async (_event, config) => {
+  try {
+    if (!codebaseHQService) throw new Error('CodebaseHQService no inicializado')
+    const result = await codebaseHQService.testConnection(config)
+    return result
+  } catch (error) {
+    console.error('Error en codebase-test-connection:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('codebase-validate-config', async (_event, config) => {
+  try {
+    if (!codebaseHQService) throw new Error('CodebaseHQService no inicializado')
+    const result = codebaseHQService.validateConfig(config)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en codebase-validate-config:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('codebase-get-deployments', async (_event, config) => {
+  try {
+    if (!codebaseHQService) throw new Error('CodebaseHQService no inicializado')
+    const result = await codebaseHQService.getDeployments(config)
+    return result
+  } catch (error) {
+    console.error('Error en codebase-get-deployments:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('codebase-get-activity', async (_event, config, page) => {
+  try {
+    if (!codebaseHQService) throw new Error('CodebaseHQService no inicializado')
+    const result = await codebaseHQService.getActivity(config, page)
+    return result
+  } catch (error) {
+    console.error('Error en codebase-get-activity:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+
+// Debug handlers
+ipcMain.handle('db-get-table-structure', async (_event) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    const result = databaseService.getTableStructure()
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en db-get-table-structure:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })

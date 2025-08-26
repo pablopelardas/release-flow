@@ -126,13 +126,15 @@ export class GitService {
   validateTagFormat(tagName: string): boolean {
     // Acepta formatos más flexibles: v1.0.0, 1.0.0, UtilitiesAPIv1.0.0, APIv2.3.1, etc.
     // Extraer la parte de versión removiendo prefijos comunes
-    let cleanVersion = tagName
+    const cleanVersion = tagName
       .replace(/^v/, '') // v1.0.0 -> 1.0.0
       .replace(/^[A-Za-z]+v?/, '') // UtilitiesAPIv1.0.0 -> 1.0.0, APIv2.3.1 -> 2.3.1
       .replace(/^[^0-9]*/, '') // Cualquier otro prefijo no numérico
-    
-    console.log(`[GitService] validateTagFormat - Original: ${tagName}, Clean: ${cleanVersion}, Valid: ${semver.valid(cleanVersion) !== null}`)
-    
+
+    console.log(
+      `[GitService] validateTagFormat - Original: ${tagName}, Clean: ${cleanVersion}, Valid: ${semver.valid(cleanVersion) !== null}`
+    )
+
     return semver.valid(cleanVersion) !== null
   }
 
@@ -188,7 +190,7 @@ export class GitService {
       console.log(`[GitService] getTags called for path: ${repoPath}`)
       const git = this.getGitInstance(repoPath)
       const tags = await git.tags()
-      
+
       console.log(`[GitService] Raw tags from git.tags():`, tags)
       console.log(`[GitService] tags.all:`, tags.all)
 
@@ -200,7 +202,7 @@ export class GitService {
       // Ordenar por versionado semántico (descendente)
       const filteredTags = tags.all.filter((tag) => this.validateTagFormat(tag))
       console.log(`[GitService] Filtered tags:`, filteredTags)
-      
+
       const sortedTags = filteredTags.sort((a, b) => {
         // Usar la misma lógica de limpieza que validateTagFormat
         const versionA = a
@@ -213,7 +215,7 @@ export class GitService {
           .replace(/^[^0-9]*/, '')
         return semver.rcompare(versionA, versionB)
       })
-      
+
       console.log(`[GitService] Sorted tags:`, sortedTags)
       return sortedTags
     } catch (error) {
@@ -261,20 +263,20 @@ export class GitService {
   async pushTags(repoPath: string, remote = 'origin'): Promise<GitPushResult> {
     try {
       const git = this.getGitInstance(repoPath)
-      
+
       // Check if remote exists
       const remotes = await git.getRemotes(true)
-      const remoteExists = remotes.some(r => r.name === remote)
-      
+      const remoteExists = remotes.some((r) => r.name === remote)
+
       if (!remoteExists) {
         return {
           success: false,
-          error: `El remote '${remote}' no existe en el repositorio. Remotos disponibles: ${remotes.map(r => r.name).join(', ') || 'ninguno'}`,
+          error: `El remote '${remote}' no existe en el repositorio. Remotos disponibles: ${remotes.map((r) => r.name).join(', ') || 'ninguno'}`,
         }
       }
-      
+
       // Check if remote has a valid URL
-      const remoteInfo = remotes.find(r => r.name === remote)
+      const remoteInfo = remotes.find((r) => r.name === remote)
       if (!remoteInfo?.refs?.push && !remoteInfo?.refs?.fetch) {
         return {
           success: false,
@@ -296,14 +298,14 @@ export class GitService {
   /**
    * Obtiene información de remotos configurados
    */
-  async getRemotes(repoPath: string): Promise<Array<{name: string, url?: string}>> {
+  async getRemotes(repoPath: string): Promise<Array<{ name: string; url?: string }>> {
     try {
       const git = this.getGitInstance(repoPath)
       const remotes = await git.getRemotes(true)
-      
-      return remotes.map(remote => ({
+
+      return remotes.map((remote) => ({
         name: remote.name,
-        url: remote.refs.push || remote.refs.fetch || undefined
+        url: remote.refs.push || remote.refs.fetch || undefined,
       }))
     } catch (error) {
       throw new Error(`Error obteniendo remotos: ${(error as Error).message}`)
@@ -325,8 +327,10 @@ export class GitService {
       return log.all.map((commit) => {
         // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
         const message = commit.message.trim()
-        const conventionalMatch = message.match(/^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/)
-        
+        const conventionalMatch = message.match(
+          /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
+        )
+
         let type = 'other'
         let scope = ''
         let subject = message
@@ -362,7 +366,10 @@ export class GitService {
   /**
    * Obtiene los últimos commits del repositorio
    */
-  async getCommits(repoPath: string, limit: number = 50): Promise<GitResult<{ commits: GitCommit[] }>> {
+  async getCommits(
+    repoPath: string,
+    limit: number = 50
+  ): Promise<GitResult<{ commits: GitCommit[] }>> {
     try {
       const git = this.getGitInstance(repoPath)
       const log = await git.log({ maxCount: limit })
@@ -370,8 +377,10 @@ export class GitService {
       const commits = log.all.map((commit) => {
         // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
         const message = commit.message.trim()
-        const conventionalMatch = message.match(/^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/)
-        
+        const conventionalMatch = message.match(
+          /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
+        )
+
         let type = 'other'
         let scope = ''
         let subject = message
@@ -402,12 +411,12 @@ export class GitService {
 
       return {
         success: true,
-        data: { commits }
+        data: { commits },
       }
     } catch (error) {
       return {
         success: false,
-        error: `Error obteniendo commits: ${(error as Error).message}`
+        error: `Error obteniendo commits: ${(error as Error).message}`,
       }
     }
   }
@@ -415,86 +424,99 @@ export class GitService {
   /**
    * Obtiene el tag base para comparación según el tipo de release
    */
-  async getBaseTagForReleaseType(repoPath: string, currentVersion: string, releaseType: 'major' | 'minor' | 'patch'): Promise<string | null> {
+  async getBaseTagForReleaseType(
+    repoPath: string,
+    currentVersion: string,
+    releaseType: 'major' | 'minor' | 'patch'
+  ): Promise<string | null> {
     try {
       const tags = await this.getTags(repoPath, true) // Ordenados por semver desc
-      
+
       if (tags.length === 0) return null
-      
+
       // Convertir tags a versiones limpias para comparación
-      const versionTags = tags.map(tag => {
+      const versionTags = tags.map((tag) => {
         const cleanVersion = tag
           .replace(/^v/, '')
           .replace(/^[A-Za-z]+v?/, '')
           .replace(/^[^0-9]*/, '')
         return { tag, version: cleanVersion }
       })
-      
+
       // Parsear versión actual
       const [currentMajor, currentMinor] = currentVersion.split('.').map(Number)
-      
+
       let baseTag: string | null = null
-      
+
       switch (releaseType) {
         case 'patch':
           // Para patch: desde la versión actual hasta HEAD
           // Buscar el tag exacto de la versión actual
-          baseTag = versionTags.find(vt => vt.version === currentVersion)?.tag || null
+          baseTag = versionTags.find((vt) => vt.version === currentVersion)?.tag || null
           break
-          
-        case 'minor':
+
+        case 'minor': {
           // Para minor: desde el último minor (x.y.0) hasta HEAD
           // Ejemplo: si estamos en 1.1.0 → 1.2.0, comparar desde 1.1.0
           // Si estamos en 1.1.3 → 1.2.0, comparar desde 1.1.0 (inicio del minor actual)
           const [, currentMinorNum, currentPatch] = currentVersion.split('.').map(Number)
-          
+
           // Buscar el tag base del minor actual (x.currentMinor.0)
-          baseTag = versionTags.find(vt => {
-            const [major, minor, patch] = vt.version.split('.').map(Number)
-            return major === currentMajor && minor === currentMinorNum && patch === 0
-          })?.tag || null
-          
+          baseTag =
+            versionTags.find((vt) => {
+              const [major, minor, patch] = vt.version.split('.').map(Number)
+              return major === currentMajor && minor === currentMinorNum && patch === 0
+            })?.tag || null
+
           // Si no encuentra x.y.0, buscar el primer tag del minor actual
           if (!baseTag) {
-            baseTag = versionTags
-              .filter(vt => {
-                const [major, minor] = vt.version.split('.').map(Number)
-                return major === currentMajor && minor === currentMinorNum
-              })
-              .pop()?.tag || null // El más viejo del minor actual
+            baseTag =
+              versionTags
+                .filter((vt) => {
+                  const [major, minor] = vt.version.split('.').map(Number)
+                  return major === currentMajor && minor === currentMinorNum
+                })
+                .pop()?.tag || null // El más viejo del minor actual
           }
-          
+
           // Si aún no encuentra (raro caso), usar el tag actual
           if (!baseTag) {
-            baseTag = versionTags.find(vt => vt.version === currentVersion)?.tag || null
+            baseTag = versionTags.find((vt) => vt.version === currentVersion)?.tag || null
           }
           break
-          
+        }
+
         case 'major':
           // Para major: desde el último tag de la versión major anterior hasta HEAD
-          baseTag = versionTags.find(vt => {
-            const [major] = vt.version.split('.').map(Number)
-            return major === currentMajor - 1
-          })?.tag || null
+          baseTag =
+            versionTags.find((vt) => {
+              const [major] = vt.version.split('.').map(Number)
+              return major === currentMajor - 1
+            })?.tag || null
           // Si no encuentra, buscar cualquier tag anterior
           if (!baseTag) {
-            baseTag = versionTags
-              .filter(vt => {
+            baseTag =
+              versionTags.filter((vt) => {
                 const [major] = vt.version.split('.').map(Number)
                 return major < currentMajor
               })[0]?.tag || null // El primero (más nuevo) anterior
           }
           break
       }
-      
+
       console.log(`[GitService] Base tag for ${releaseType} release:`)
       console.log(`  Current version: ${currentVersion}`)
-      console.log(`  Next version: ${releaseType === 'major' ? `${currentMajor + 1}.0.0` : 
-                                   releaseType === 'minor' ? `${currentMajor}.${currentMinor + 1}.0` : 
-                                   `${currentMajor}.${currentMinor}.${currentVersion.split('.')[2] ? parseInt(currentVersion.split('.')[2]) + 1 : 1}`}`)
+      console.log(
+        `  Next version: ${
+          releaseType === 'major'
+            ? `${currentMajor + 1}.0.0`
+            : releaseType === 'minor'
+              ? `${currentMajor}.${currentMinor + 1}.0`
+              : `${currentMajor}.${currentMinor}.${currentVersion.split('.')[2] ? parseInt(currentVersion.split('.')[2]) + 1 : 1}`
+        }`
+      )
       console.log(`  Base tag selected: ${baseTag}`)
       return baseTag
-      
     } catch (error) {
       console.error(`[GitService] Error getting base tag:`, error)
       return null
@@ -504,30 +526,34 @@ export class GitService {
   /**
    * Obtiene commits desde el último tag hasta HEAD
    */
-  async getCommitsSinceLastTag(repoPath: string): Promise<GitResult<{ commits: GitCommit[], fromTag?: string }>> {
+  async getCommitsSinceLastTag(
+    repoPath: string
+  ): Promise<GitResult<{ commits: GitCommit[]; fromTag?: string }>> {
     try {
       const git = this.getGitInstance(repoPath)
-      
+
       // Obtener el último tag
       const tags = await git.tag(['--sort=-version:refname'])
-      const tagList = tags.split('\n').filter(tag => tag.trim())
-      
+      const tagList = tags.split('\n').filter((tag) => tag.trim())
+
       if (tagList.length === 0) {
         // Si no hay tags, obtener los últimos 20 commits
         return this.getCommits(repoPath, 20)
       }
-      
+
       const lastTag = tagList[0].trim()
       console.log(`[Git] Getting commits since last tag: ${lastTag}`)
-      
+
       // Obtener commits desde el último tag hasta HEAD
       const log = await git.log({ from: lastTag, to: 'HEAD' })
-      
+
       const commits = log.all.map((commit) => {
         // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
         const message = commit.message.trim()
-        const conventionalMatch = message.match(/^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/)
-        
+        const conventionalMatch = message.match(
+          /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
+        )
+
         let type = 'other'
         let scope = ''
         let subject = message
@@ -558,12 +584,12 @@ export class GitService {
 
       return {
         success: true,
-        data: { commits, fromTag: lastTag }
+        data: { commits, fromTag: lastTag },
       }
     } catch (error) {
       return {
         success: false,
-        error: `Error obteniendo commits desde último tag: ${(error as Error).message}`
+        error: `Error obteniendo commits desde último tag: ${(error as Error).message}`,
       }
     }
   }
@@ -572,16 +598,16 @@ export class GitService {
    * Obtiene commits para un tipo específico de release
    */
   async getCommitsForReleaseType(
-    repoPath: string, 
-    currentVersion: string, 
+    repoPath: string,
+    currentVersion: string,
     releaseType: 'major' | 'minor' | 'patch'
-  ): Promise<GitResult<{ commits: GitCommit[], fromTag?: string, toTag: string }>> {
+  ): Promise<GitResult<{ commits: GitCommit[]; fromTag?: string; toTag: string }>> {
     try {
       const git = this.getGitInstance(repoPath)
-      
+
       // Obtener el tag base según el tipo de release
       const baseTag = await this.getBaseTagForReleaseType(repoPath, currentVersion, releaseType)
-      
+
       if (!baseTag) {
         // Si no hay tag base, obtener los últimos 20 commits
         console.log(`[GitService] No base tag found, getting recent commits`)
@@ -591,22 +617,24 @@ export class GitService {
           data: {
             commits: recentCommits.data?.commits || [],
             fromTag: 'inicio',
-            toTag: 'HEAD'
+            toTag: 'HEAD',
           },
-          error: recentCommits.error
+          error: recentCommits.error,
         }
       }
-      
+
       console.log(`[GitService] Getting commits from ${baseTag} to HEAD`)
-      
+
       // Obtener commits desde el tag base hasta HEAD
       const log = await git.log({ from: baseTag, to: 'HEAD' })
-      
+
       const commits = log.all.map((commit) => {
         // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
         const message = commit.message.trim()
-        const conventionalMatch = message.match(/^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/)
-        
+        const conventionalMatch = message.match(
+          /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
+        )
+
         let type = 'other'
         let scope = ''
         let subject = message
@@ -619,7 +647,12 @@ export class GitService {
           // Si no es conventional commit, intentar detectar el tipo por palabras clave
           const lowerMessage = message.toLowerCase()
           if (lowerMessage.includes('feat') || lowerMessage.includes('add')) type = 'feat'
-          else if (lowerMessage.includes('fix') || lowerMessage.includes('bug') || lowerMessage.includes('hotfix')) type = 'fix'
+          else if (
+            lowerMessage.includes('fix') ||
+            lowerMessage.includes('bug') ||
+            lowerMessage.includes('hotfix')
+          )
+            type = 'fix'
           else if (lowerMessage.includes('doc')) type = 'docs'
         }
 
@@ -639,17 +672,17 @@ export class GitService {
 
       return {
         success: true,
-        data: { 
-          commits, 
+        data: {
+          commits,
           fromTag: baseTag,
-          toTag: 'HEAD'
-        }
+          toTag: 'HEAD',
+        },
       }
     } catch (error) {
       console.error(`[GitService] Error in getCommitsForReleaseType:`, error)
       return {
         success: false,
-        error: `Error obteniendo commits para release ${releaseType}: ${(error as Error).message}`
+        error: `Error obteniendo commits para release ${releaseType}: ${(error as Error).message}`,
       }
     }
   }
@@ -728,7 +761,9 @@ export class GitService {
       try {
         const remotes = await this.getRemotes(repoPath)
         if (remotes.length === 0) {
-          warnings.push('No hay remotos configurados - los tags no se podrán pushear automáticamente')
+          warnings.push(
+            'No hay remotos configurados - los tags no se podrán pushear automáticamente'
+          )
         }
       } catch (error) {
         warnings.push('No se pudo verificar la configuración de remotos')
@@ -740,7 +775,7 @@ export class GitService {
         isValid,
         warnings,
         errors,
-        status
+        status,
       }
     } catch (error) {
       return {
@@ -754,8 +789,8 @@ export class GitService {
           stagedFiles: [],
           aheadBy: 0,
           behindBy: 0,
-          isClean: false
-        }
+          isClean: false,
+        },
       }
     }
   }
