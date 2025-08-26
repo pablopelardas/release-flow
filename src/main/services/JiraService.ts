@@ -266,9 +266,40 @@ export class JiraService {
       console.log(`📥 JIRA Response (${response.status}):`, responseText.substring(0, 500))
 
       if (!response.ok) {
+        let errorMessage = `JIRA API Error ${response.status}: ${response.statusText}`
+
+        // Try to parse JIRA-specific error messages
+        try {
+          if (responseText) {
+            const errorData = JSON.parse(responseText)
+
+            // Check for specific JIRA error formats
+            if (errorData.errors && typeof errorData.errors === 'object') {
+              // Format: {"errorMessages":[],"errors":{"name":"Ya existe una versión con este nombre en este proyecto."}}
+              const errorFields = Object.values(errorData.errors)
+              if (errorFields.length > 0) {
+                errorMessage = errorFields[0] as string
+              }
+            } else if (
+              errorData.errorMessages &&
+              Array.isArray(errorData.errorMessages) &&
+              errorData.errorMessages.length > 0
+            ) {
+              // Format: {"errorMessages":["Error message"]}
+              errorMessage = errorData.errorMessages[0]
+            } else if (errorData.message) {
+              // Format: {"message":"Error message"}
+              errorMessage = errorData.message
+            }
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, keep the original HTTP error message
+          console.warn('Could not parse JIRA error response:', parseError)
+        }
+
         return {
           success: false,
-          error: `JIRA API Error ${response.status}: ${response.statusText}`,
+          error: errorMessage,
           statusCode: response.status,
           data: responseText,
         }
@@ -831,97 +862,79 @@ export class JiraService {
    */
   private parseInlineFormatting(text: string): ADFNode[] {
     const content: ADFNode[] = []
-    let currentPos = 0
+    let processedText = text
 
-    // Patrón para detectar formato inline
-    const patterns = [
-      { regex: /\*\*(.*?)\*\*/g, type: 'strong' }, // **bold**
-      { regex: /\*(.*?)\*/g, type: 'em' }, // *italic*
-      { regex: /`(.*?)`/g, type: 'code' }, // `code`
-      { regex: /🚀|📋|✅|⚠️|❌|💬|🔗|🎯/g, type: 'emoji' }, // emojis
-    ]
+    // Aplicar transformaciones de formato en orden específico para evitar conflicts
+    // Primero procesamos **bold** antes de *italic* para evitar overlaps
 
-    const matches: Array<{ start: number; end: number; type: string; content: string }> = []
-
-    // Encontrar todas las coincidencias
-    patterns.forEach((pattern) => {
-      let match: RegExpExecArray | null
-      // biome-ignore lint/suspicious/noAssignInExpressions: Required for regex matching
-      while ((match = pattern.regex.exec(text)) !== null) {
-        matches.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          type: pattern.type,
-          content: pattern.type === 'emoji' ? match[0] : match[1],
-        })
-      }
+    // 1. Procesar **bold**
+    processedText = processedText.replace(/\*\*(.*?)\*\*/g, (_match, boldText) => {
+      content.push({
+        type: 'text',
+        text: boldText,
+        marks: [{ type: 'strong' }],
+      })
+      return `__BOLD_${content.length - 1}__` // placeholder temporal
     })
 
-    // Ordenar matches por posición
-    matches.sort((a, b) => a.start - b.start)
-
-    // Construir el contenido
-    for (const match of matches) {
-      // Agregar texto antes del match
-      if (match.start > currentPos) {
-        const plainText = text.substring(currentPos, match.start)
-        if (plainText) {
-          content.push({
-            type: 'text',
-            text: plainText,
-          })
-        }
-      }
-
-      // Agregar el match formateado
-      if (match.type === 'strong') {
-        content.push({
-          type: 'text',
-          text: match.content,
-          marks: [{ type: 'strong' }],
-        })
-      } else if (match.type === 'em') {
-        content.push({
-          type: 'text',
-          text: match.content,
-          marks: [{ type: 'em' }],
-        })
-      } else if (match.type === 'code') {
-        content.push({
-          type: 'text',
-          text: match.content,
-          marks: [{ type: 'code' }],
-        })
-      } else if (match.type === 'emoji') {
-        content.push({
-          type: 'text',
-          text: match.content,
-        })
-      }
-
-      currentPos = match.end
-    }
-
-    // Agregar texto restante
-    if (currentPos < text.length) {
-      const remainingText = text.substring(currentPos)
-      if (remainingText) {
-        content.push({
-          type: 'text',
-          text: remainingText,
-        })
-      }
-    }
-
-    // Si no hay contenido formateado, devolver texto plano
-    if (content.length === 0) {
+    // 2. Procesar *italic* (solo si no está dentro de bold)
+    processedText = processedText.replace(/\*([^*]+?)\*/g, (_match, italicText) => {
       content.push({
+        type: 'text',
+        text: italicText,
+        marks: [{ type: 'em' }],
+      })
+      return `__ITALIC_${content.length - 1}__` // placeholder temporal
+    })
+
+    // 3. Procesar `code`
+    processedText = processedText.replace(/`(.*?)`/g, (_match, codeText) => {
+      content.push({
+        type: 'text',
+        text: codeText,
+        marks: [{ type: 'code' }],
+      })
+      return `__CODE_${content.length - 1}__` // placeholder temporal
+    })
+
+    // 4. Procesar emojis
+    processedText = processedText.replace(/🚀|📋|✅|⚠️|❌|💬|🔗|🎯/g, (match) => {
+      content.push({
+        type: 'text',
+        text: match,
+      })
+      return `__EMOJI_${content.length - 1}__` // placeholder temporal
+    })
+
+    // Ahora procesar el texto restante y reconstruir en orden
+    const finalContent: ADFNode[] = []
+    const parts = processedText.split(/(__[A-Z_]+_\d+__)/g)
+
+    for (const part of parts) {
+      if (part.startsWith('__') && part.endsWith('__')) {
+        // Es un placeholder, obtener el contenido formateado correspondiente
+        const index = Number.parseInt(part.match(/_(\d+)__$/)?.[1] || '0', 10)
+        if (content[index]) {
+          finalContent.push(content[index])
+        }
+      } else if (part.trim()) {
+        // Es texto normal
+        finalContent.push({
+          type: 'text',
+          text: part,
+        })
+      }
+    }
+
+    // Si no hay contenido, devolver texto original
+    if (finalContent.length === 0) {
+      finalContent.push({
         type: 'text',
         text: text,
       })
     }
 
-    return content
+    return finalContent
   }
 
   /**

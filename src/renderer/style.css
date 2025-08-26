@@ -84,6 +84,98 @@ body {
   line-height: 1;
 }
 
+/* Toast notifications styling */
+.p-toast {
+  opacity: 1;
+}
+
+.p-toast .p-toast-message {
+  margin: 0.5rem;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.p-toast .p-toast-message .p-toast-message-content {
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.p-toast .p-toast-message .p-toast-message-text {
+  margin: 0 0.5rem;
+}
+
+.p-toast .p-toast-message .p-toast-summary {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.p-toast .p-toast-message .p-toast-detail {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.8);
+  white-space: pre-line; /* Allows line breaks in text */
+  word-wrap: break-word;
+  max-width: 320px;
+}
+
+/* Success toast */
+.p-toast .p-toast-message.p-toast-message-success {
+  background: rgba(34, 197, 94, 0.95);
+  color: white;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.p-toast .p-toast-message.p-toast-message-success .p-toast-detail {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Warning toast */
+.p-toast .p-toast-message.p-toast-message-warn {
+  background: rgba(251, 191, 36, 0.95);
+  color: #92400e;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.p-toast .p-toast-message.p-toast-message-warn .p-toast-detail {
+  color: #92400e;
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+/* Error toast */
+.p-toast .p-toast-message.p-toast-message-error {
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.p-toast .p-toast-message.p-toast-message-error .p-toast-detail {
+  color: rgba(255, 255, 255, 0.9);
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+/* Info toast */
+.p-toast .p-toast-message.p-toast-message-info {
+  background: rgba(59, 130, 246, 0.95);
+  color: white;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.p-toast .p-toast-message.p-toast-message-info .p-toast-detail {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Dark mode support for toasts */
+.dark .p-toast .p-toast-message {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Light mode tag and badge colors for better contrast */
 .p-tag {
   background: #e5e7eb;
