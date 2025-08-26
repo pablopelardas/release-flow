@@ -323,9 +323,9 @@ export class GitService {
       
       for (const tagName of allTags) {
         try {
-          // Get tag details including date and message
-          const tagInfo = await git.show([tagName, '--format=%ai|%s', '--no-patch'])
-          const [date, ...messageParts] = tagInfo.split('|')
+          // Get commit details that the tag points to
+          const commitInfo = await git.raw(['log', '--format=%ai|%s', '-n', '1', tagName])
+          const [date, ...messageParts] = commitInfo.trim().split('|')
           const message = messageParts.join('|') || 'Sin mensaje'
           
           tagDetails.push({

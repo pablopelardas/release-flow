@@ -8,7 +8,7 @@
 - **IDESAINT-600/feat: endpoint CancelarV2 devuelve proximos turnos disponibiles con interrvalos de una semana entre medio** (c1f6dde) - Pablo Pelardas
 
 ## TurnosOmintWebAPIv1.0.6.288
-*Invalid Date*
+*15 de agosto de 2025, 17:08*
 
 Merge branch 'master' of codebasehq.com:mindware/clever/omint
 
@@ -21,7 +21,7 @@ Merge branch 'master' of codebasehq.com:mindware/clever/omint
 ---
 
 ## TurnosOmintWebAPIv1.0.6.284
-*Invalid Date*
+*12 de agosto de 2025, 16:46*
 
 IDESAINT-694/feat: carpeta monitoreo generico para portar a otras apps
 
@@ -43,7 +43,7 @@ IDESAINT-694/feat: carpeta monitoreo generico para portar a otras apps
 ---
 
 ## TurnosOmintWebAPIv1.0.6.267
-*Invalid Date*
+*30 de julio de 2025, 17:55*
 
 Merge con qa
 

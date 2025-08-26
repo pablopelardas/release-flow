@@ -590,7 +590,15 @@ const loadCommitsForRelease = async (release, index) => {
 
 const formatDate = (dateString) => {
   if (!dateString) return 'Fecha desconocida'
+  
   const date = new Date(dateString)
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    console.warn(`Invalid date string received: "${dateString}"`)
+    return `Fecha inválida`
+  }
+  
   return date.toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'long',
