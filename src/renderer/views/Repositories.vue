@@ -335,8 +335,9 @@
           <div class="flex items-center">
             <input 
               type="checkbox"
-              v-model="editCodebaseEnabled" 
-              class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              v-model="editCodebaseEnabled"
+              :disabled="savingCodebase"
+              class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 disabled:bg-gray-300"
             />
             <label class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               Habilitar deployments en CodebaseHQ
@@ -349,9 +350,10 @@
                 Repository Permalink
               </label>
               <input 
-                v-model="editCodebasePermalink" 
+                v-model="editCodebasePermalink"
+                :disabled="savingCodebase"
                 placeholder="ej: omint" 
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:bg-gray-100 disabled:text-gray-500"
               />
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 URL: https://api3.codebasehq.com/Clever/<strong>{{ editCodebasePermalink || 'repo' }}</strong>/deployments
@@ -363,9 +365,10 @@
                 Environment
               </label>
               <input 
-                v-model="editCodebaseEnvironment" 
+                v-model="editCodebaseEnvironment"
+                :disabled="savingCodebase"
                 placeholder="ej: TurnosOmintWebAPI" 
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
             
@@ -374,9 +377,10 @@
                 Servers (separados por coma)
               </label>
               <input 
-                v-model="editCodebaseServers" 
+                v-model="editCodebaseServers"
+                :disabled="savingCodebase"
                 placeholder="ej: vturnoscli.omint.ad" 
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
           </div>
@@ -384,16 +388,19 @@
         
         <div class="flex space-x-3 mt-6">
           <button 
-            @click="cancelConfigureCodebase" 
-            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
+            @click="cancelConfigureCodebase"
+            :disabled="savingCodebase"
+            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-300 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
           >
             Cancelar
           </button>
           <button 
-            @click="saveCodebaseConfig" 
-            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors"
+            @click="saveCodebaseConfig"
+            :disabled="savingCodebase"
+            class="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors flex items-center justify-center space-x-2"
           >
-            Guardar
+            <i v-if="savingCodebase" class="pi pi-spin pi-spinner"></i>
+            <span>{{ savingCodebase ? 'Guardando...' : 'Guardar' }}</span>
           </button>
         </div>
       </div>
@@ -432,6 +439,7 @@ const editCodebaseEnabled = ref(false)
 const editCodebasePermalink = ref('')
 const editCodebaseEnvironment = ref('')
 const editCodebaseServers = ref('')
+const savingCodebase = ref(false)
 
 // Computed properties
 const repositories = computed(() => repositoriesStore.repositories)
@@ -588,7 +596,7 @@ const saveSecondaryRepos = async () => {
 
 const configureCodebaseHQ = (repo) => {
   selectedCodebaseRepo.value = { ...repo }
-  editCodebaseEnabled.value = repo.codebase_enabled || false
+  editCodebaseEnabled.value = Boolean(repo.codebase_enabled)
   editCodebasePermalink.value = repo.codebase_repository_permalink || ''
   editCodebaseEnvironment.value = repo.codebase_environment || 'production'
   editCodebaseServers.value = repo.codebase_servers || ''
@@ -602,16 +610,15 @@ const cancelConfigureCodebase = () => {
   editCodebasePermalink.value = ''
   editCodebaseEnvironment.value = ''
   editCodebaseServers.value = ''
+  savingCodebase.value = false
 }
 
 const saveCodebaseConfig = async () => {
+  if (!selectedCodebaseRepo.value) return
+  
+  savingCodebase.value = true
+  
   try {
-    if (!selectedCodebaseRepo.value) return
-    
-    // Debug: verificar estructura de tabla
-    const tableStructure = await window.electronAPI.dbGetTableStructure()
-    console.log('Table structure:', tableStructure)
-    
     const updates = {
       codebase_enabled: editCodebaseEnabled.value ? 1 : 0, // Convertir boolean a integer para SQLite
       codebase_repository_permalink: editCodebasePermalink.value,
@@ -633,7 +640,8 @@ const saveCodebaseConfig = async () => {
       await repositoriesStore.loadRepositories()
       cancelConfigureCodebase()
       
-      alert('✅ Configuración de CodebaseHQ actualizada exitosamente')
+      // Usar notificación menos intrusiva
+      console.log('✅ Configuración de CodebaseHQ actualizada exitosamente')
     } else {
       console.error('❌ Error updating CodebaseHQ configuration:', response.error)
       alert(`Error updating CodebaseHQ configuration: ${response.error}`)
@@ -641,6 +649,8 @@ const saveCodebaseConfig = async () => {
   } catch (error) {
     console.error('❌ Error saving CodebaseHQ configuration:', error)
     alert(`Error saving CodebaseHQ configuration: ${error.message}`)
+  } finally {
+    savingCodebase.value = false
   }
 }
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mocks de Electron
-const mockBrowserWindow = {
+const _mockBrowserWindow = {
   webContents: {
     send: vi.fn(),
   },
@@ -17,7 +17,7 @@ const mockShell = {
   openExternal: vi.fn(),
 }
 
-const mockIpcMain = {
+const _mockIpcMain = {
   handle: vi.fn(),
   on: vi.fn(),
 }
@@ -74,7 +74,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar save-file-dialog-advanced correctamente', async () => {
-      const options = {
+      const _options = {
         title: 'Guardar Template',
         filters: [{ name: 'Templates', extensions: ['liquid'] }],
       }
@@ -95,8 +95,8 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar write-file correctamente', async () => {
-      const filePath = '/test/file.txt'
-      const content = 'contenido a escribir'
+      const _filePath = '/test/file.txt'
+      const _content = 'contenido a escribir'
 
       mockFs.writeFile.mockResolvedValue(undefined)
 
@@ -125,8 +125,8 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar git-commit correctamente', async () => {
-      const repoPath = '/test/repo'
-      const message = 'test commit'
+      const _repoPath = '/test/repo'
+      const _message = 'test commit'
 
       mockGitService.commit.mockResolvedValue({
         commit: 'abc123',
@@ -137,9 +137,9 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar git-tag correctamente', async () => {
-      const repoPath = '/test/repo'
+      const _repoPath = '/test/repo'
       const tagName = 'v1.0.0'
-      const message = 'Release v1.0.0'
+      const _message = 'Release v1.0.0'
 
       mockGitService.createTag.mockResolvedValue({ name: tagName })
 
@@ -155,8 +155,8 @@ describe('IPC Handlers', () => {
 
   describe('Template Handlers', () => {
     it('debe manejar render-template correctamente', async () => {
-      const template = 'Hola {{ name }}'
-      const data = { name: 'mundo' }
+      const _template = 'Hola {{ name }}'
+      const _data = { name: 'mundo' }
       const expected = 'Hola mundo'
 
       mockTemplateService.render.mockResolvedValue(expected)
@@ -165,7 +165,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar validate-template correctamente', async () => {
-      const template = '{{ valid.template }}'
+      const _template = '{{ valid.template }}'
 
       mockTemplateService.validate.mockResolvedValue({
         valid: true,
@@ -176,7 +176,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar templates inválidos', async () => {
-      const invalidTemplate = '{{ invalid syntax'
+      const _invalidTemplate = '{{ invalid syntax'
 
       mockTemplateService.validate.mockResolvedValue({
         valid: false,
@@ -200,8 +200,8 @@ describe('IPC Handlers', () => {
 
   describe('Database Handlers', () => {
     it('debe manejar db-query correctamente', async () => {
-      const query = 'SELECT * FROM repositories WHERE active = ?'
-      const params = [true]
+      const _query = 'SELECT * FROM repositories WHERE active = ?'
+      const _params = [true]
       const mockResults = [
         { id: 1, name: 'repo1', path: '/test/repo1' },
         { id: 2, name: 'repo2', path: '/test/repo2' },
@@ -213,8 +213,8 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar db-insert correctamente', async () => {
-      const table = 'repositories'
-      const data = { name: 'nuevo-repo', path: '/test/nuevo-repo' }
+      const _table = 'repositories'
+      const _data = { name: 'nuevo-repo', path: '/test/nuevo-repo' }
 
       mockDatabaseService.insert.mockResolvedValue({ id: 3 })
 
@@ -222,9 +222,9 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar db-update correctamente', async () => {
-      const table = 'templates'
-      const id = 1
-      const data = { content: 'contenido actualizado' }
+      const _table = 'templates'
+      const _id = 1
+      const _data = { content: 'contenido actualizado' }
 
       mockDatabaseService.update.mockResolvedValue({ changes: 1 })
 
@@ -232,7 +232,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar errores de base de datos', async () => {
-      const invalidQuery = 'INVALID SQL'
+      const _invalidQuery = 'INVALID SQL'
 
       mockDatabaseService.query.mockRejectedValue(new Error('Syntax error en SQL'))
 
@@ -242,7 +242,7 @@ describe('IPC Handlers', () => {
 
   describe('Release Handlers', () => {
     it('debe generar release correctamente', async () => {
-      const releaseData = {
+      const _releaseData = {
         repository: '/test/repo',
         version: '1.0.0',
         template: 'basic',
@@ -260,7 +260,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe crear release con tag correctamente', async () => {
-      const releaseData = {
+      const _releaseData = {
         repository: '/test/repo',
         version: '1.1.0',
         notes: 'Release notes',
@@ -277,7 +277,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe obtener versiones disponibles', async () => {
-      const repoPath = '/test/repo'
+      const _repoPath = '/test/repo'
       const mockVersions = ['1.0.0', '0.9.0', '0.8.1']
 
       mockReleaseService.getVersions.mockResolvedValue(mockVersions)
@@ -288,7 +288,7 @@ describe('IPC Handlers', () => {
 
   describe('System Handlers', () => {
     it('debe manejar show-in-explorer correctamente', async () => {
-      const folderPath = '/test/folder'
+      const _folderPath = '/test/folder'
 
       mockShell.showItemInFolder.mockResolvedValue(undefined)
 
@@ -296,7 +296,7 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar open-external correctamente', async () => {
-      const url = 'https://github.com/test/repo'
+      const _url = 'https://github.com/test/repo'
 
       mockShell.openExternal.mockResolvedValue(undefined)
 
@@ -314,8 +314,8 @@ describe('IPC Handlers', () => {
     })
 
     it('debe manejar set-config correctamente', async () => {
-      const key = 'theme'
-      const value = 'dark'
+      const _key = 'theme'
+      const _value = 'dark'
 
       // Mock para guardar configuración
       const mockSaveConfig = vi.fn()

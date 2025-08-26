@@ -330,6 +330,7 @@
                 </div>
               </div>
 
+
               <!-- Repository Validation -->
               <div v-if="repositoryValidation.errors.length > 0 || repositoryValidation.warnings.length > 0" class="space-y-3">
                 <!-- Errors -->
@@ -396,7 +397,7 @@
                 <div class="flex items-center text-green-700 dark:text-green-300">
                   <i class="pi pi-check-circle mr-2 text-green-500"></i>
                   <span class="text-sm font-medium">
-                    Se creará tag de Git automáticamente: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{{ selectedRepository?.tag_prefix || '' }}{{ version }}</code>
+                    Se creará tag de Git automáticamente: <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">{{ (selectedRepository?.tag_prefix || '') + getFinalVersion() }}</code>
                   </span>
                 </div>
                 
@@ -408,11 +409,20 @@
                   </label>
                 </div>
                 
-                <div class="flex items-center">
+                <!-- Integration Options -->
+                <div v-if="integrationsStatus.codebase.enabled" class="flex items-center">
                   <Checkbox v-model="createCodebaseDeployment" :binary="true" />
                   <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                    <i class="pi pi-cloud-upload mr-1 text-purple-500"></i>
+                    <i class="pi pi-box mr-1 text-purple-500"></i>
                     Crear deployment en CodebaseHQ
+                  </label>
+                </div>
+                
+                <div v-if="integrationsStatus.jira.enabled" class="flex items-center">
+                  <Checkbox v-model="createJiraRelease" :binary="true" />
+                  <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    <i class="pi pi-sitemap mr-1 text-blue-500"></i>
+                    Crear release en JIRA
                   </label>
                 </div>
                 
@@ -594,12 +604,19 @@ const createTag = ref(true) // Always true, no longer a checkbox
 const pushTags = ref(true) // Default enabled
 const saveToFile = ref(false) // Default disabled
 const createCodebaseDeployment = ref(true) // Default enabled
+const createJiraRelease = ref(false) // Will be set based on JIRA enabled status
 
 // Recent releases - usar store real
 const recentReleases = computed(() => releasesStore.releases)
 
 // Información de repositorios secundarios
 const secondaryReposInfo = ref('')
+
+// Estado de integraciones
+const integrationsStatus = ref({
+  codebase: { enabled: false, status: 'unknown' },
+  jira: { enabled: false, status: 'unknown' }
+})
 
 // Validación del repositorio
 const repositoryValidation = ref({
@@ -626,7 +643,7 @@ const canProceed = computed(() => {
 })
 
 // Methods
-const startNewRelease = () => {
+const startNewRelease = async () => {
   showWizard.value = true
   currentStep.value = 1
   resetWizardData()
@@ -647,7 +664,8 @@ const resetWizardData = () => {
   createTag.value = true
   pushTags.value = true // Default enabled
   saveToFile.value = false // Default disabled  
-  createCodebaseDeployment.value = true // Default enabled
+  createCodebaseDeployment.value = false // Will be set by loadIntegrationsStatus
+  createJiraRelease.value = false // Will be set by loadIntegrationsStatus
   repositoryValidation.value = {
     isValid: true,
     warnings: [],
@@ -665,6 +683,7 @@ const nextStep = () => {
       generatePreview()
       loadSecondaryReposInfo()
       validateRepositoryForRelease()
+      loadIntegrationsStatus() // Recargar integraciones con el repo seleccionado
     }
   }
 }
@@ -856,12 +875,15 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
       throw new Error('Error generando changelog del repositorio principal')
     }
     
+    // Clean automatic generation text from individual changelogs
+    const cleanMainChangelog = cleanAutomaticGenerationText(mainChangelogResponse)
+    
     // Start unified changelog with main repository
     let unifiedChangelog = `# ${selectedRepository.value.name} - Release ${getFinalVersion()}\n\n`
     unifiedChangelog += `**Fecha:** ${new Date().toLocaleDateString()}\n\n`
     unifiedChangelog += `---\n\n`
     unifiedChangelog += `## 📁 Repositorio Principal: ${selectedRepository.value.name}\n\n`
-    unifiedChangelog += mainChangelogResponse + '\n\n'
+    unifiedChangelog += cleanMainChangelog + '\n\n'
     
     // Generate changelog for each secondary repository
     for (const secondaryRepo of secondaryRepositories) {
@@ -894,9 +916,12 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
           const secondaryChangelogResponse = await templatesStore.renderTemplate(selectedTemplate.value.content, secondaryTemplateData)
           
           if (secondaryChangelogResponse) {
+            // Clean automatic generation text from secondary changelog
+            const cleanSecondaryChangelog = cleanAutomaticGenerationText(secondaryChangelogResponse)
+            
             unifiedChangelog += `---\n\n`
             unifiedChangelog += `## 📦 Repositorio Secundario: ${secondaryRepo.name}\n\n`
-            unifiedChangelog += secondaryChangelogResponse + '\n\n'
+            unifiedChangelog += cleanSecondaryChangelog + '\n\n'
             console.log(`✅ Successfully generated changelog for ${secondaryRepo.name}`)
           } else {
             console.warn(`⚠️ Failed to generate changelog for ${secondaryRepo.name}`)
@@ -925,7 +950,7 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
     secondaryRepositories.forEach(repo => {
       unifiedChangelog += `- **Repositorio Secundario:** ${repo.name}\n`
     })
-    unifiedChangelog += `\n*Changelog generado automáticamente por ReleaseFlow*`
+    unifiedChangelog += `\n\n---\n*Generado automáticamente por ReleaseFlow*`
     
     console.log('✅ Unified changelog generated successfully')
     return unifiedChangelog
@@ -975,6 +1000,22 @@ const generateSingleRepositoryPreview = async () => {
   } else {
     generatedPreview.value = 'Error generando preview'
   }
+}
+
+const cleanAutomaticGenerationText = (text) => {
+  return text
+    // Remove "Generado automáticamente por ReleaseFlow" at the end
+    .replace(/---\s*\n\s*Generado automáticamente por ReleaseFlow\s*$/gm, '')
+    // Remove "Generated automatically by ReleaseFlow" at the end
+    .replace(/---\s*\n\s*\*Generated automatically by ReleaseFlow\*\s*$/gm, '')
+    // Remove standalone "Generated automatically by ReleaseFlow" lines
+    .replace(/^\s*Generado automáticamente por ReleaseFlow\s*$/gm, '')
+    .replace(/^\s*\*Generated automatically by ReleaseFlow\*\s*$/gm, '')
+    // Clean up multiple empty lines
+    .replace(/\n\n\n+/g, '\n\n')
+    // Remove trailing separator if it's at the end
+    .replace(/---\s*$/gm, '')
+    .trim()
 }
 
 const convertMarkdownToHtml = (markdown) => {
@@ -1148,7 +1189,91 @@ const generateRelease = async () => {
     }
     console.log('✅ Release guardado en BD')
     
-    // 3. Guardar en archivo si está habilitado
+    // 3. Crear release en JIRA si está habilitado
+    try {
+      console.log('🎫 Verificando configuración de JIRA...')
+      const jiraConfig = await window.electronAPI.jiraGetConfig()
+      
+      if (jiraConfig.success && jiraConfig.data.enabled && createJiraRelease.value) {
+        console.log('🎫 JIRA habilitado, creando release...')
+        
+        // Obtener commits para el análisis de issues
+        const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
+          selectedRepository.value.path,
+          currentVersion.value,
+          versionType.value
+        )
+        
+        console.log('🔍 Commits response from backend:', commitsResponse)
+        
+        if (commitsResponse.success && commitsResponse.data && commitsResponse.data.commits && commitsResponse.data.commits.length > 0) {
+          console.log(`🎫 Analizando ${commitsResponse.data.commits.length} commits para issues de JIRA...`)
+          
+          // Convertir HTML de release notes a texto plano para JIRA
+          const plainTextNotes = convertHtmlToMarkdown(generatedPreview.value)
+          console.log('📝 Release notes for JIRA:', {
+            originalHtml: generatedPreview.value.substring(0, 200) + '...',
+            converted: plainTextNotes.substring(0, 200) + '...',
+            originalLength: generatedPreview.value.length,
+            convertedLength: plainTextNotes.length
+          })
+          const releaseDate = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+          
+          const fullVersionName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
+          
+          const jiraResponse = await window.electronAPI.jiraCreateReleaseWithIssues(
+            fullVersionName,
+            commitsResponse.data.commits,
+            plainTextNotes,
+            releaseDate
+          )
+          
+          if (jiraResponse.success) {
+            const { version, issues, associatedIssues } = jiraResponse.data
+            console.log(`✅ JIRA release creado: ${version.name}`)
+            console.log(`🎫 Issues encontrados: ${issues.length}`)
+            console.log(`🔗 Issues asociados: ${associatedIssues}`)
+            
+            // Mostrar notificación de éxito
+            if (issues.length > 0) {
+              window.electronAPI.notify(
+                'JIRA Integration', 
+                `Release ${finalVersion} creado con ${issues.length} tickets asociados`
+              )
+            }
+          } else {
+            console.warn('⚠️ Error creando release en JIRA:', jiraResponse.error)
+            // No fallar el release completo por error de JIRA
+          }
+        } else {
+          console.log('ℹ️ No hay commits para analizar, creando release básico en JIRA...')
+          console.log('🔍 Commits data was:', commitsResponse.data)
+          console.log('🔍 Commits success:', commitsResponse.success)
+          console.log('🔍 Commits array length:', commitsResponse.data?.commits?.length || 0)
+          
+          const fullVersionName = `${selectedRepository.value.tag_prefix || ''}${finalVersion}`
+          
+          const basicJiraResponse = await window.electronAPI.jiraCreateVersion({
+            name: fullVersionName,
+            description: `Release generated automatically by ReleaseFlow`,
+            releaseDate: new Date().toISOString().split('T')[0]
+          })
+          
+          if (basicJiraResponse.success) {
+            console.log('✅ Release básico creado en JIRA:', basicJiraResponse.data.name)
+          } else {
+            console.warn('⚠️ Error creando release básico en JIRA:', basicJiraResponse.error)
+          }
+        }
+      } else {
+        console.log('ℹ️ JIRA no está habilitado o checkbox desactivado, omitiendo creación de release')
+      }
+    } catch (error) {
+      console.warn('⚠️ Error en integración con JIRA (no crítico):', error.message)
+      // No fallar el release completo por errores de JIRA
+    }
+    
+    // 4. Guardar en archivo si está habilitado
     if (saveToFile.value) {
       console.log('📁 Guardando archivo de release...')
       
@@ -1564,6 +1689,56 @@ const validateRepositoryForRelease = async () => {
       errors: [`Error inesperado: ${error.message}`],
       status: null
     }
+  }
+}
+
+const loadIntegrationsStatus = async () => {
+  try {
+    console.log('🔧 Cargando estado de integraciones...')
+    console.log('🔧 selectedRepository.value:', selectedRepository.value)
+    
+    // Verificar JIRA (solo configuración global)
+    const jiraEnabled = await window.electronAPI.dbGetConfig('jira_enabled')
+    console.log('🔧 JIRA config response:', jiraEnabled)
+    integrationsStatus.value.jira.enabled = jiraEnabled.success && (jiraEnabled.data === 'true' || jiraEnabled.data?.value === 'true')
+    createJiraRelease.value = integrationsStatus.value.jira.enabled
+    
+    // Verificar CodebaseHQ (configuración global + del repositorio)
+    const codebaseGlobalEnabled = await window.electronAPI.dbGetConfig('codebase_enabled')
+    console.log('🔧 CodebaseHQ global config response:', codebaseGlobalEnabled)
+    
+    const isCodebaseGlobalEnabled = codebaseGlobalEnabled.success && (codebaseGlobalEnabled.data === 'true' || codebaseGlobalEnabled.data?.value === 'true')
+    
+    // Verificar si hay repositorio seleccionado
+    if (!selectedRepository.value) {
+      console.warn('⚠️ No hay repositorio seleccionado todavía')
+      integrationsStatus.value.codebase.enabled = false
+      createCodebaseDeployment.value = false
+      return
+    }
+    
+    // Verificar codebase_enabled del repositorio (puede ser 1, true, o "1")
+    const repoCodebaseEnabled = selectedRepository.value.codebase_enabled
+    const isCodebaseRepoEnabled = repoCodebaseEnabled === true || repoCodebaseEnabled === 1 || repoCodebaseEnabled === '1'
+    
+    console.log('🔧 CodebaseHQ checks:', {
+      globalEnabled: isCodebaseGlobalEnabled,
+      repoEnabled: isCodebaseRepoEnabled,
+      selectedRepo: selectedRepository.value?.name,
+      repoCodebaseValue: repoCodebaseEnabled,
+      repoCodebaseType: typeof repoCodebaseEnabled
+    })
+    
+    integrationsStatus.value.codebase.enabled = isCodebaseGlobalEnabled && isCodebaseRepoEnabled
+    createCodebaseDeployment.value = integrationsStatus.value.codebase.enabled
+    
+    console.log('📋 Estado final de integraciones:', integrationsStatus.value)
+    console.log('🔧 Checkboxes configurados:', {
+      codebase: createCodebaseDeployment.value,
+      jira: createJiraRelease.value
+    })
+  } catch (error) {
+    console.error('Error cargando estado de integraciones:', error)
   }
 }
 

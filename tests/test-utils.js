@@ -76,9 +76,21 @@ export const mockElectronAPI = {
   dbUpdateRepository: () => Promise.resolve({ success: true, data: { changes: 1 } }),
   dbDeleteRepository: () => Promise.resolve({ success: true }),
   dbSaveTemplate: () => Promise.resolve({ success: true, data: { id: 1 } }),
-  dbGetTemplates: () => Promise.resolve({ success: true, data: { templates: [] } }),
+  dbGetTemplates: (category) => {
+    if (category === 'predefined') {
+      return Promise.resolve({
+        success: true,
+        data: { templates: [{ id: 1, name: 'Default Template', content: 'Sample template' }] },
+      })
+    }
+    return Promise.resolve({
+      success: true,
+      data: { templates: [{ id: 2, name: 'Custom Template', content: 'User template' }] },
+    })
+  },
   dbSetConfig: () => Promise.resolve({ success: true }),
   dbGetConfig: () => Promise.resolve({ success: true, data: { value: 'test' } }),
+  dbListReleases: () => Promise.resolve({ success: true, data: { releases: [] } }),
 
   // Release operations
   releaseValidatePrerequisites: () => Promise.resolve({ success: true, data: { valid: true } }),
@@ -87,6 +99,14 @@ export const mockElectronAPI = {
   releaseCreate: () => Promise.resolve({ success: true, data: { tag: 'v1.0.0' } }),
   releaseGetHistory: () => Promise.resolve({ success: true, data: [] }),
   releaseSuggestVersion: () => Promise.resolve({ success: true, data: '1.1.0' }),
+
+  // CodebaseHQ operations
+  codebaseGetActivity: () =>
+    Promise.resolve({
+      success: true,
+      data: '<?xml version="1.0" encoding="UTF-8"?><events></events>',
+    }),
+  codebaseTestConnection: () => Promise.resolve({ success: true, data: 'Connection successful' }),
 }
 
 // Setup function for tests

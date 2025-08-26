@@ -112,9 +112,7 @@ export class DatabaseService {
     this.db.pragma('cache_size = 1000')
     this.db.pragma('temp_store = MEMORY')
 
-    // Ejecutar migraciones primero
-    this.addCodebaseColumnsIfMissing()
-    this.ensureConfigurationsTable()
+    // No migrations needed in development - recreate DB as needed
 
     // Crear tablas
     this.createTables()
@@ -265,6 +263,12 @@ export class DatabaseService {
         ['codebase_project_permalink', 'Clever'],
         ['codebase_default_environment', 'production'],
         ['codebase_default_servers', 'vturnoscli.omint.ad'],
+        // JIRA Configuration
+        ['jira_enabled', 'false'],
+        ['jira_base_url', 'https://your-company.atlassian.net'],
+        ['jira_username', ''],
+        ['jira_api_token', ''],
+        ['jira_project_key', 'PROJ'],
       ]
 
       const insertMany = this.db.transaction((configs: Array<[string, string]>) => {
@@ -801,7 +805,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
   ): Promise<DatabaseResult<{ templates: Template[] }>> {
     try {
       console.log(`[DB] getTemplatesByCategory called with category: ${category}`)
-      let stmt: any
+      let stmt: Database.Statement
       let templates: Template[]
 
       if (category === null) {
@@ -1079,9 +1083,6 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
    */
   async migrate(): Promise<MigrationResult> {
     try {
-      // Verificar y agregar columnas de CodebaseHQ si no existen
-      await this.addCodebaseColumnsIfMissing()
-
       // Re-ejecutar createTables para añadir nuevas tablas/índices
       this.createTables()
 
@@ -1094,99 +1095,6 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         success: false,
         error: `Error en migración: ${(error as Error).message}`,
       }
-    }
-  }
-
-  /**
-   * Agrega columnas de CodebaseHQ a repositorios existentes si no existen
-   */
-  private async addCodebaseColumnsIfMissing(): Promise<void> {
-    try {
-      // Verificar si las columnas ya existen
-      const tableInfo = this.db.prepare('PRAGMA table_info(repositories)').all() as Array<{
-        name: string
-      }>
-      const existingColumns = tableInfo.map((col) => col.name)
-
-      const codebaseColumns = [
-        'codebase_repository_permalink',
-        'codebase_environment',
-        'codebase_servers',
-        'codebase_enabled',
-      ]
-
-      for (const column of codebaseColumns) {
-        if (!existingColumns.includes(column)) {
-          console.log(`Adding missing column: ${column}`)
-
-          let defaultValue = 'TEXT'
-          let defaultVal = ''
-
-          if (column === 'codebase_enabled') {
-            defaultValue = 'BOOLEAN DEFAULT 0'
-            defaultVal = ''
-          } else if (column === 'codebase_environment') {
-            defaultValue = "TEXT DEFAULT 'production'"
-            defaultVal = ''
-          } else {
-            defaultValue = 'TEXT'
-            defaultVal = ''
-          }
-
-          const alterSql = `ALTER TABLE repositories ADD COLUMN ${column} ${defaultValue}`
-          console.log(`Executing: ${alterSql}`)
-          this.db.exec(alterSql)
-        }
-      }
-    } catch (error) {
-      console.error('Error adding CodebaseHQ columns:', error)
-      // No lanzar error aquí para evitar que falle la inicialización
-    }
-  }
-
-  /**
-   * Asegura que la tabla de configuraciones exista con la estructura correcta
-   */
-  private ensureConfigurationsTable(): void {
-    try {
-      // Verificar si la tabla existe
-      const tableExists = this.db
-        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='configurations'")
-        .get()
-
-      if (!tableExists) {
-        console.log('Creating configurations table...')
-        this.db.exec(`
-          CREATE TABLE configurations (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          );
-        `)
-        console.log('Configurations table created successfully')
-      } else {
-        // Verificar que tenga todas las columnas necesarias
-        const tableInfo = this.db.prepare('PRAGMA table_info(configurations)').all() as Array<{
-          name: string
-        }>
-        const existingColumns = tableInfo.map((col) => col.name)
-        
-        if (!existingColumns.includes('updated_at')) {
-          console.log('Adding updated_at column to configurations table...')
-          this.db.exec('ALTER TABLE configurations ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP')
-        }
-      }
-
-      // Crear trigger para updated_at si no existe
-      this.db.exec(`
-        CREATE TRIGGER IF NOT EXISTS update_configurations_updated_at 
-        AFTER UPDATE ON configurations
-        BEGIN
-          UPDATE configurations SET updated_at = CURRENT_TIMESTAMP WHERE key = NEW.key;
-        END;
-      `)
-    } catch (error) {
-      console.error('Error ensuring configurations table:', error)
     }
   }
 
@@ -1399,7 +1307,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         VALUES (?, ?)
       `)
 
-      const result = stmt.run(mainRepoId, secondaryRepoId)
+      const _result = stmt.run(mainRepoId, secondaryRepoId)
 
       return { success: true }
     } catch (error) {
@@ -1506,7 +1414,7 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
         SELECT * FROM repositories 
         WHERE is_main_repository = 0 AND active = 1
       `
-      const params: any[] = []
+      const params: unknown[] = []
 
       if (excludeMainRepoId) {
         query += ` AND id != ?`
@@ -1593,11 +1501,18 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
     name: string
     type: string
     notnull: number
-    dflt_value: any
+    dflt_value: unknown
     pk: number
   }> {
     try {
-      return this.db.prepare('PRAGMA table_info(repositories)').all() as any[]
+      return this.db.prepare('PRAGMA table_info(repositories)').all() as Array<{
+        cid: number
+        name: string
+        type: string
+        notnull: number
+        dflt_value: unknown
+        pk: number
+      }>
     } catch (error) {
       console.error('Error getting table structure:', error)
       return []

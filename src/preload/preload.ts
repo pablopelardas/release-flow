@@ -107,6 +107,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   codebaseGetDeployments: (config) => ipcRenderer.invoke('codebase-get-deployments', config),
   codebaseGetActivity: (config, page) => ipcRenderer.invoke('codebase-get-activity', config, page),
 
+  // JIRA
+  jiraTestConnection: () => ipcRenderer.invoke('jira-test-connection'),
+  jiraGetConfig: () => ipcRenderer.invoke('jira-get-config'),
+  jiraFindIssuesFromCommits: (commits) =>
+    ipcRenderer.invoke('jira-find-issues-from-commits', commits),
+  jiraSearchIssues: (jql, maxResults) => ipcRenderer.invoke('jira-search-issues', jql, maxResults),
+  jiraCreateVersion: (versionData) => ipcRenderer.invoke('jira-create-version', versionData),
+  jiraGetProjectVersions: (projectKey) =>
+    ipcRenderer.invoke('jira-get-project-versions', projectKey),
+  jiraCreateReleaseWithIssues: (versionName, commits, releaseNotes, releaseDate) =>
+    ipcRenderer.invoke(
+      'jira-create-release-with-issues',
+      versionName,
+      commits,
+      releaseNotes,
+      releaseDate
+    ),
+  jiraAddIssuesFixVersion: (issueKeys, versionId) =>
+    ipcRenderer.invoke('jira-add-issues-fix-version', issueKeys, versionId),
+
   // Debug
   dbGetTableStructure: () => ipcRenderer.invoke('db-get-table-structure'),
 

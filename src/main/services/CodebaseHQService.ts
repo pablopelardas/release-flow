@@ -17,7 +17,7 @@ export interface DeploymentData {
 
 export interface CodebaseHQResult {
   success: boolean
-  data?: any
+  data?: unknown
   error?: string
   statusCode?: number
 }

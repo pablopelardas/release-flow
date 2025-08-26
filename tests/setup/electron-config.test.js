@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest'
 
 describe('Configuración de Electron', () => {
   test('main.js debe tener configuración básica de ventana', () => {
-    const mainPath = path.join(process.cwd(), 'src/main/main.js')
+    const mainPath = path.join(process.cwd(), 'src/main/main.ts')
     expect(existsSync(mainPath)).toBe(true)
 
     const mainContent = readFileSync(mainPath, 'utf-8')
@@ -21,7 +21,7 @@ describe('Configuración de Electron', () => {
   })
 
   test('preload script debe implementar context bridge', () => {
-    const preloadPath = path.join(process.cwd(), 'src/preload/preload.js')
+    const preloadPath = path.join(process.cwd(), 'src/preload/preload.ts')
     expect(existsSync(preloadPath)).toBe(true)
 
     const preloadContent = readFileSync(preloadPath, 'utf-8')

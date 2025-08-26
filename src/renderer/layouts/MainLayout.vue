@@ -91,8 +91,8 @@
                   : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
               ]"
             >
-              <i class="pi pi-cog mr-3"></i>
-              Configuración
+              <i class="pi pi-link mr-3"></i>
+              Integraciones
             </router-link>
           </li>
         </ul>
@@ -119,10 +119,6 @@
               <i :class="isDark ? 'pi pi-sun' : 'pi pi-moon'"></i>
             </button>
             
-            <!-- Settings -->
-            <button class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <i class="pi pi-cog"></i>
-            </button>
           </div>
         </div>
       </header>

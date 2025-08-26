@@ -394,7 +394,7 @@ describe('DatabaseService', () => {
       const result = await databaseService.cleanup(30) // 30 días
 
       expect(result.success).toBe(true)
-      expect(result.data.deletedRows).toBe(5)
+      expect(result.deletedRows).toBe(5)
       expect(mockRun).toHaveBeenCalled()
     })
   })

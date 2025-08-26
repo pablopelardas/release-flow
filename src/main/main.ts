@@ -1,11 +1,12 @@
+import { readFile, writeFile } from 'node:fs/promises'
+import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
-import * as path from 'path'
-import { fileURLToPath } from 'url'
 import { CodebaseHQService } from './services/CodebaseHQService.js'
 import { DatabaseService } from './services/DatabaseService.js'
 // Importar servicios TypeScript
 import { GitService } from './services/GitService.js'
+import { JiraService } from './services/JiraService.js'
 import { ReleaseService } from './services/ReleaseService.js'
 import { TemplateService } from './services/TemplateService.js'
 
@@ -25,6 +26,7 @@ let templateService: TemplateService | null = null
 let releaseService: ReleaseService | null = null
 let databaseService: DatabaseService | null = null
 let codebaseHQService: CodebaseHQService | null = null
+let jiraService: JiraService | null = null
 
 function createWindow() {
   // Crear ventana principal del navegador
@@ -212,6 +214,10 @@ async function initializeServices() {
 
     // Inicializar CodebaseHQService
     codebaseHQService = new CodebaseHQService()
+
+    // Inicializar JiraService
+    jiraService = new JiraService(databaseService)
+    await jiraService.initialize()
 
     console.log('Servicios inicializados correctamente')
     return true
@@ -594,9 +600,9 @@ ipcMain.handle('db-update-secondary-repositories', async (_event, mainRepoId, se
     if (!databaseService) throw new Error('DatabaseService no inicializado')
 
     console.log('IPC Handler - Update secondary repositories:', {
-      mainRepoId: typeof mainRepoId + ' ' + mainRepoId,
+      mainRepoId: `${typeof mainRepoId} ${mainRepoId}`,
       secondaryRepoIds: Array.isArray(secondaryRepoIds)
-        ? secondaryRepoIds.map((id) => typeof id + ' ' + id)
+        ? secondaryRepoIds.map((id) => `${typeof id} ${id}`)
         : secondaryRepoIds,
     })
 
@@ -755,6 +761,115 @@ ipcMain.handle('codebase-get-activity', async (_event, config, page) => {
   }
 })
 
+// JIRA Service Handlers
+ipcMain.handle('jira-test-connection', async (_event) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const result = await jiraService.testConnection()
+    return result
+  } catch (error) {
+    console.error('Error en jira-test-connection:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('jira-get-config', async (_event) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const config = jiraService.getConfig()
+    return {
+      success: true,
+      data: {
+        enabled: jiraService.isEnabled(),
+        config: config
+          ? {
+              baseUrl: config.baseUrl,
+              username: config.username,
+              projectKey: config.projectKey,
+              hasApiToken: !!config.apiToken,
+            }
+          : null,
+      },
+    }
+  } catch (error) {
+    console.error('Error en jira-get-config:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('jira-find-issues-from-commits', async (_event, commits) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const result = await jiraService.findIssuesFromCommits(commits)
+    return result
+  } catch (error) {
+    console.error('Error en jira-find-issues-from-commits:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('jira-search-issues', async (_event, jql, maxResults) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const result = await jiraService.searchIssues(jql, maxResults)
+    return result
+  } catch (error) {
+    console.error('Error en jira-search-issues:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('jira-create-version', async (_event, versionData) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const result = await jiraService.createVersion(versionData)
+    return result
+  } catch (error) {
+    console.error('Error en jira-create-version:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('jira-get-project-versions', async (_event, projectKey) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const result = await jiraService.getProjectVersions(projectKey)
+    return result
+  } catch (error) {
+    console.error('Error en jira-get-project-versions:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle(
+  'jira-create-release-with-issues',
+  async (_event, versionName, commits, releaseNotes, releaseDate) => {
+    try {
+      if (!jiraService) throw new Error('JiraService no inicializado')
+      const result = await jiraService.createReleaseWithIssues(
+        versionName,
+        commits,
+        releaseNotes,
+        releaseDate
+      )
+      return result
+    } catch (error) {
+      console.error('Error en jira-create-release-with-issues:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+    }
+  }
+)
+
+ipcMain.handle('jira-add-issues-fix-version', async (_event, issueKeys, versionId) => {
+  try {
+    if (!jiraService) throw new Error('JiraService no inicializado')
+    const result = await jiraService.addIssuesFixVersion(issueKeys, versionId)
+    return result
+  } catch (error) {
+    console.error('Error en jira-add-issues-fix-version:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
 
 // Debug handlers
 ipcMain.handle('db-get-table-structure', async (_event) => {

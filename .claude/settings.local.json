@@ -3,12 +3,12 @@
     "allow": [
       "Bash(npm install:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(npm run build:main:*)"
+      "Bash(npm run build:main:*)",
+      "Bash(npm test:*)",
+      "Bash(npx biome check:*)"
     ],
     "deny": [],
     "ask": [],
-    "additionalDirectories": [
-      "D:\\working\\intuit\\utilities"
-    ]
+    "additionalDirectories": ["D:\\working\\intuit\\utilities"]
   }
 }

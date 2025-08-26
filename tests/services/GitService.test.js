@@ -21,12 +21,14 @@ describe('GitService', () => {
       commit: vi.fn(),
       addAnnotatedTag: vi.fn(),
       tags: vi.fn(),
+      tag: vi.fn(),
       push: vi.fn(),
       log: vi.fn(),
       diff: vi.fn(),
       raw: vi.fn(),
       branch: vi.fn(),
       checkout: vi.fn(),
+      getRemotes: vi.fn(),
     }
 
     // Configurar mock de simple-git
@@ -123,11 +125,13 @@ describe('GitService', () => {
 
     test('debe verificar si tag ya existe', async () => {
       mockGit.tags.mockResolvedValue({ all: ['v1.0.0', 'v1.1.0'] })
+      mockGit.tag.mockResolvedValue() // Mock successful tag deletion
+      mockGit.addAnnotatedTag.mockResolvedValue() // Mock successful tag creation
 
       const result = await gitService.createTag('/path/to/repo', 'v1.0.0', 'Message')
 
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('ya existe')
+      expect(result.success).toBe(true)
+      expect(mockGit.tag).toHaveBeenCalledWith(['-d', 'v1.0.0'])
     })
   })
 
@@ -190,6 +194,9 @@ describe('GitService', () => {
 
   describe('pushTags', () => {
     test('debe hacer push de tags al remoto', async () => {
+      mockGit.getRemotes.mockResolvedValue([
+        { name: 'origin', refs: { fetch: 'https://github.com/user/repo.git' } },
+      ])
       mockGit.push.mockResolvedValue('pushed')
 
       const result = await gitService.pushTags('/path/to/repo', 'origin')
@@ -199,6 +206,9 @@ describe('GitService', () => {
     })
 
     test('debe usar origin como remoto por defecto', async () => {
+      mockGit.getRemotes.mockResolvedValue([
+        { name: 'origin', refs: { fetch: 'https://github.com/user/repo.git' } },
+      ])
       mockGit.push.mockResolvedValue('pushed')
 
       await gitService.pushTags('/path/to/repo')

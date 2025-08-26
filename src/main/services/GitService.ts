@@ -44,7 +44,7 @@ export interface GitCommit {
   refs: string
 }
 
-export interface GitResult<T = any> {
+export interface GitResult<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -459,7 +459,7 @@ export class GitService {
           // Para minor: desde el último minor (x.y.0) hasta HEAD
           // Ejemplo: si estamos en 1.1.0 → 1.2.0, comparar desde 1.1.0
           // Si estamos en 1.1.3 → 1.2.0, comparar desde 1.1.0 (inicio del minor actual)
-          const [, currentMinorNum, currentPatch] = currentVersion.split('.').map(Number)
+          const [, currentMinorNum, _currentPatch] = currentVersion.split('.').map(Number)
 
           // Buscar el tag base del minor actual (x.currentMinor.0)
           baseTag =
@@ -512,7 +512,7 @@ export class GitService {
             ? `${currentMajor + 1}.0.0`
             : releaseType === 'minor'
               ? `${currentMajor}.${currentMinor + 1}.0`
-              : `${currentMajor}.${currentMinor}.${currentVersion.split('.')[2] ? parseInt(currentVersion.split('.')[2]) + 1 : 1}`
+              : `${currentMajor}.${currentMinor}.${currentVersion.split('.')[2] ? parseInt(currentVersion.split('.')[2], 10) + 1 : 1}`
         }`
       )
       console.log(`  Base tag selected: ${baseTag}`)
@@ -765,7 +765,7 @@ export class GitService {
             'No hay remotos configurados - los tags no se podrán pushear automáticamente'
           )
         }
-      } catch (error) {
+      } catch (_error) {
         warnings.push('No se pudo verificar la configuración de remotos')
       }
 

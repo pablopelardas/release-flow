@@ -11,7 +11,7 @@ describe('Estructura del Proyecto', () => {
 
     // Verificar campos básicos
     expect(packageJson.name).toBe('releaseflow-electron')
-    expect(packageJson.main).toBe('src/main/main.js')
+    expect(packageJson.main).toBe('src/main/main.ts')
     expect(packageJson.description).toContain('ReleaseFlow Desktop')
 
     // Verificar scripts necesarios
@@ -69,13 +69,13 @@ describe('Estructura del Proyecto', () => {
   })
 
   test('archivo main de Electron debe existir', () => {
-    const mainPath = path.join(process.cwd(), 'src/main/main.js')
-    expect(existsSync(mainPath), 'src/main/main.js debe existir').toBe(true)
+    const mainPath = path.join(process.cwd(), 'src/main/main.ts')
+    expect(existsSync(mainPath), 'src/main/main.ts debe existir').toBe(true)
   })
 
   test('archivo preload debe existir', () => {
-    const preloadPath = path.join(process.cwd(), 'src/preload/preload.js')
-    expect(existsSync(preloadPath), 'src/preload/preload.js debe existir').toBe(true)
+    const preloadPath = path.join(process.cwd(), 'src/preload/preload.ts')
+    expect(existsSync(preloadPath), 'src/preload/preload.ts debe existir').toBe(true)
   })
 
   test('archivo principal de Vue debe existir', () => {
