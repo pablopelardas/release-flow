@@ -25,7 +25,7 @@ describe('DatabaseService', () => {
 
     // Mock de prepared statements
     const mockStatement = {
-      run: vi.fn(),
+      run: vi.fn().mockReturnValue({ changes: 0, lastInsertRowid: 1 }), // Mock con changes
       get: vi.fn().mockReturnValue({ count: 0 }), // Mock para seedData
       all: vi.fn(),
       bind: vi.fn(),

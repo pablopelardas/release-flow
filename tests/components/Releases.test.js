@@ -1,7 +1,16 @@
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Releases from '../../src/renderer/views/Releases.vue'
 import { globalMountOptions, setupTestEnvironment } from '../test-utils.js'
+
+// Mock useToast from PrimeVue
+vi.mock('primevue/usetoast', () => ({
+  useToast: () => ({
+    add: vi.fn(),
+    removeAll: vi.fn(),
+    clear: vi.fn(),
+  }),
+}))
 
 describe('Releases Vista', () => {
   let wrapper
@@ -9,6 +18,12 @@ describe('Releases Vista', () => {
   beforeEach(() => {
     setupTestEnvironment()
     wrapper = mount(Releases, globalMountOptions)
+  })
+
+  afterEach(() => {
+    if (wrapper) {
+      wrapper.unmount()
+    }
   })
 
   it('debe renderizar el componente correctamente', () => {

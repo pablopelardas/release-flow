@@ -107,6 +107,12 @@ describe('Activity Vista', () => {
     wrapper = mount(Activity, mountOptions)
   })
 
+  afterEach(() => {
+    if (wrapper) {
+      wrapper.unmount()
+    }
+  })
+
   it('debe renderizar el componente correctamente', () => {
     expect(wrapper.exists()).toBe(true)
     expect(wrapper.find('h1').text()).toBe('Actividad del Proyecto')

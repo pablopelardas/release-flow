@@ -2,6 +2,18 @@ import { createPinia } from 'pinia'
 import { vi } from 'vitest'
 import { createRouter, createWebHistory } from 'vue-router'
 
+// Mock ToastService plugin
+const mockToastService = {
+  install: (app) => {
+    app.config.globalProperties.$toast = {
+      add: vi.fn(),
+      removeAll: vi.fn(),
+      clear: vi.fn(),
+    }
+    app.provide('$toast', app.config.globalProperties.$toast)
+  },
+}
+
 // Router mock básico
 export const createMockRouter = () => {
   return createRouter({
@@ -27,7 +39,7 @@ export const createMockPinia = () => {
 // Global mount options
 export const globalMountOptions = {
   global: {
-    plugins: [createMockRouter(), createMockPinia()],
+    plugins: [createMockRouter(), createMockPinia(), mockToastService],
     stubs: {
       'router-link': true,
       'router-view': true,
@@ -39,6 +51,11 @@ export const globalMountOptions = {
       ProgressBar: true,
       Splitter: true,
       SplitterPanel: true,
+      Toast: true,
+      Tooltip: true,
+    },
+    directives: {
+      tooltip: {},
     },
   },
 }

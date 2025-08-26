@@ -293,23 +293,25 @@ export class DatabaseService {
 
     // FORZAR eliminación de templates predefinidos para obtener siempre las últimas versiones
     try {
-      const deleteResult = this.db.prepare('DELETE FROM templates WHERE category = ?').run('predefined')
+      const deleteResult = this.db
+        .prepare('DELETE FROM templates WHERE category = ?')
+        .run('predefined')
       console.log(`[DB] Deleted ${deleteResult.changes} predefined templates`)
     } catch (error) {
       console.warn(`[DB] Error deleting predefined templates:`, error)
     }
 
     // Insertar templates predefinidos
-      const insertTemplate = this.db.prepare(
-        'INSERT INTO templates (name, description, content, category) VALUES (?, ?, ?, ?)'
-      )
+    const insertTemplate = this.db.prepare(
+      'INSERT INTO templates (name, description, content, category) VALUES (?, ?, ?, ?)'
+    )
 
-      const predefinedTemplates = [
-        {
-          name: 'Release Notes Estándar',
-          description: 'Template formal para release notes',
-          category: 'predefined',
-          content: `# Release Notes v{{ version }}
+    const predefinedTemplates = [
+      {
+        name: 'Release Notes Estándar',
+        description: 'Template formal para release notes',
+        category: 'predefined',
+        content: `# Release Notes v{{ version }}
 **Fecha de Lanzamiento:** {{ date | formatDate }}
 **Tipo de Release:** {{ type }}
 
@@ -350,12 +352,12 @@ export class DatabaseService {
 {% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}- {{ commit.subject }}
 {% endunless %}{% endfor %}
 {% endif %}`,
-        },
-        {
-          name: 'Changelog Simple',
-          description: 'Template minimalista para changelogs',
-          category: 'predefined',
-          content: `## v{{ version }} - {{ date | date: "%Y-%m-%d" }}
+      },
+      {
+        name: 'Changelog Simple',
+        description: 'Template minimalista para changelogs',
+        category: 'predefined',
+        content: `## v{{ version }} - {{ date | date: "%Y-%m-%d" }}
 
 {% assign has_feat = false %}
 {% assign has_fix = false %}
@@ -397,12 +399,12 @@ export class DatabaseService {
 {% endunless %}{% endfor %}
 
 {% endif %}`,
-        },
-        {
-          name: 'Release Notes con Breaking Changes',
-          description: 'Template para releases con cambios importantes',
-          category: 'predefined',
-          content: `# 🎉 Release v{{ version }}
+      },
+      {
+        name: 'Release Notes con Breaking Changes',
+        description: 'Template para releases con cambios importantes',
+        category: 'predefined',
+        content: `# 🎉 Release v{{ version }}
 
 {% assign has_breaking = false %}
 {% assign has_feat = false %}
@@ -468,24 +470,19 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
 
 **Fecha:** {{ date | date: "%d de %B de %Y" }}
 **Autor:** {{ author | default: "Release Team" }}`,
-        },
-      ]
+      },
+    ]
 
-      const insertManyTemplates = this.db.transaction((templates) => {
-        for (const template of templates) {
-          insertTemplate.run(
-            template.name,
-            template.description,
-            template.content,
-            template.category
-          )
-          console.log(`[DB] Inserted template: ${template.name}`)
-        }
-      })
+    const insertManyTemplates = this.db.transaction((templates) => {
+      for (const template of templates) {
+        insertTemplate.run(template.name, template.description, template.content, template.category)
+        console.log(`[DB] Inserted template: ${template.name}`)
+      }
+    })
 
-      console.log(`[DB] Seeding ${predefinedTemplates.length} predefined templates`)
-      insertManyTemplates(predefinedTemplates)
-      console.log(`[DB] Templates seeded successfully`)
+    console.log(`[DB] Seeding ${predefinedTemplates.length} predefined templates`)
+    insertManyTemplates(predefinedTemplates)
+    console.log(`[DB] Templates seeded successfully`)
   }
 
   // ===== OPERACIONES DE REPOSITORIOS =====

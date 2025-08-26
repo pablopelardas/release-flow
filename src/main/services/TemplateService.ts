@@ -69,14 +69,24 @@ export class TemplateService {
       const dateObj = typeof date === 'string' ? new Date(date) : date
 
       const months = [
-        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+        'enero',
+        'febrero',
+        'marzo',
+        'abril',
+        'mayo',
+        'junio',
+        'julio',
+        'agosto',
+        'septiembre',
+        'octubre',
+        'noviembre',
+        'diciembre',
       ]
 
       const year = dateObj.getFullYear()
       const month = dateObj.getMonth()
       const day = dateObj.getDate()
-      
+
       // Formato por defecto en español
       if (format === '%d de %B de %Y') {
         return `${day} de ${months[month]} de ${year}`

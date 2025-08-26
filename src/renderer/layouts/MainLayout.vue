@@ -128,12 +128,16 @@
         <router-view />
       </div>
     </main>
+    
+    <!-- Toast Notifications -->
+    <Toast position="top-right" />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import Toast from 'primevue/toast'
 
 const route = useRoute()
 const isDark = ref(false)

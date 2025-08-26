@@ -35,10 +35,16 @@ describe('Settings Vista', () => {
     wrapper = mount(Settings)
   })
 
+  afterEach(() => {
+    if (wrapper) {
+      wrapper.unmount()
+    }
+  })
+
   it('debe renderizar el componente correctamente', () => {
     expect(wrapper.exists()).toBe(true)
-    expect(wrapper.find('h1').text()).toBe('Configuración')
-    expect(wrapper.text()).toContain('Configuración global de ReleaseFlow')
+    expect(wrapper.find('h1').text()).toBe('Integraciones')
+    expect(wrapper.text()).toContain('Configuración de integraciones')
   })
 
   it('debe mostrar sección de CodebaseHQ', () => {
@@ -148,7 +154,10 @@ describe('Settings Vista', () => {
   it('debe manejar errores de carga de configuración', async () => {
     mockElectronAPI.dbGetConfig.mockRejectedValue(new Error('Database error'))
 
-    // Re-mount to trigger error
+    // Unmount previous wrapper and re-mount to trigger error
+    if (wrapper) {
+      wrapper.unmount()
+    }
     wrapper = mount(Settings)
     await wrapper.vm.$nextTick()
 

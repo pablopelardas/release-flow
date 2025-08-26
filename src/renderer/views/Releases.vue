@@ -546,6 +546,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import ProgressBar from 'primevue/progressbar'
@@ -554,6 +555,21 @@ import InputText from 'primevue/inputtext'
 import { useRepositoriesStore, useTemplatesStore, useReleasesStore } from '../store'
 
 const router = useRouter()
+const toast = useToast()
+
+// Helper function to enhance JIRA error messages with context
+const enhanceJiraError = (error) => {
+  if (error.includes('Ya existe una versión con este nombre')) {
+    return `${error}\n\nSugerencia: Usa un nombre de versión diferente o elimina la versión existente en JIRA.`
+  }
+  if (error.includes('unauthorized') || error.includes('403') || error.includes('401')) {
+    return `${error}\n\nVerifica las credenciales de JIRA en la configuración.`
+  }
+  if (error.includes('not found') || error.includes('404')) {
+    return `${error}\n\nVerifica que el proyecto JIRA exista y sea accesible.`
+  }
+  return error
+}
 
 // Stores
 const repositoriesStore = useRepositoriesStore()
@@ -876,7 +892,9 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
     }
     
     // Clean automatic generation text from individual changelogs
+    console.log('🔍 MAIN CHANGELOG BEFORE CLEANING:', mainChangelogResponse.substring(0, 500))
     const cleanMainChangelog = cleanAutomaticGenerationText(mainChangelogResponse)
+    console.log('🧹 MAIN CHANGELOG AFTER CLEANING:', cleanMainChangelog.substring(0, 500))
     
     // Start unified changelog with main repository
     let unifiedChangelog = `# ${selectedRepository.value.name} - Release ${getFinalVersion()}\n\n`
@@ -951,6 +969,7 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
     unifiedChangelog += ``
     
     console.log('✅ Unified changelog generated successfully')
+    console.log('📋 FINAL UNIFIED CHANGELOG:', unifiedChangelog.substring(0, 800))
     return unifiedChangelog
     
   } catch (error) {
@@ -1015,10 +1034,17 @@ const cleanAutomaticGenerationText = (text) => {
   cleaned = cleaned
     // Fix "Fecha de Lanzamiento:Fecha de Lanzamiento:" -> "Fecha de Lanzamiento:"
     .replace(/Fecha de Lanzamiento:Fecha de Lanzamiento:/g, 'Fecha de Lanzamiento:')
+    .replace(/\*\*Fecha de Lanzamiento:\*\*\*\*Fecha de Lanzamiento:\*\*/g, '**Fecha de Lanzamiento:**')
     // Fix "Tipo de Release:Tipo de Release:" -> "Tipo de Release:"
     .replace(/Tipo de Release:Tipo de Release:/g, 'Tipo de Release:')
-    // Generic fix for any duplicated labels
+    .replace(/\*\*Tipo de Release:\*\*\*\*Tipo de Release:\*\*/g, '**Tipo de Release:**')
+    // Generic fix for any duplicated labels with markdown
+    .replace(/(\*\*[^:]*:\*\*)\1/g, '$1')
+    // Generic fix for any duplicated labels without markdown
     .replace(/(\*\*[^:]*:)\1/g, '$1')
+    // Fix any remaining duplicated patterns
+    .replace(/(Fecha de Lanzamiento:[^\\n]*)\1/g, '$1')
+    .replace(/(Tipo de Release:[^\\n]*)\1/g, '$1')
   
   // Clean up excessive whitespace and empty lines
   cleaned = cleaned
@@ -1253,14 +1279,23 @@ const generateRelease = async () => {
             console.log(`🔗 Issues asociados: ${associatedIssues}`)
             
             // Mostrar notificación de éxito
-            if (issues.length > 0) {
-              window.electronAPI.notify(
-                'JIRA Integration', 
-                `Release ${finalVersion} creado con ${issues.length} tickets asociados`
-              )
-            }
+            toast.add({
+              severity: 'success',
+              summary: 'JIRA Integration',
+              detail: issues.length > 0 
+                ? `Release ${version.name} creado con ${issues.length} tickets asociados`
+                : `Release ${version.name} creado exitosamente`,
+              life: 4000
+            })
           } else {
             console.warn('⚠️ Error creando release en JIRA:', jiraResponse.error)
+            // Mostrar notificación de error
+            toast.add({
+              severity: 'warn',
+              summary: 'Error en JIRA',
+              detail: enhanceJiraError(jiraResponse.error || 'Error desconocido al crear release en JIRA'),
+              life: 0 // Persiste hasta que el usuario lo cierre
+            })
             // No fallar el release completo por error de JIRA
           }
         } else {
@@ -1279,8 +1314,20 @@ const generateRelease = async () => {
           
           if (basicJiraResponse.success) {
             console.log('✅ Release básico creado en JIRA:', basicJiraResponse.data.name)
+            toast.add({
+              severity: 'success',
+              summary: 'JIRA Release Creado',
+              detail: `Release básico ${basicJiraResponse.data.name} creado exitosamente`,
+              life: 3000
+            })
           } else {
             console.warn('⚠️ Error creando release básico en JIRA:', basicJiraResponse.error)
+            toast.add({
+              severity: 'warn',
+              summary: 'Error en JIRA',
+              detail: enhanceJiraError(basicJiraResponse.error || 'Error desconocido al crear release básico en JIRA'),
+              life: 0 // Persiste hasta que el usuario lo cierre
+            })
           }
         }
       } else {
@@ -1288,6 +1335,12 @@ const generateRelease = async () => {
       }
     } catch (error) {
       console.warn('⚠️ Error en integración con JIRA (no crítico):', error.message)
+      toast.add({
+        severity: 'error',
+        summary: 'Error de JIRA',
+        detail: `Error inesperado en integración con JIRA: ${error.message}`,
+        life: 0 // Persiste hasta que el usuario lo cierre
+      })
       // No fallar el release completo por errores de JIRA
     }
     
@@ -1313,8 +1366,20 @@ const generateRelease = async () => {
         const writeResponse = await window.electronAPI.writeFile(saveResponse.filePath, fileContent)
         if (writeResponse.success) {
           console.log('✅ Archivo guardado exitosamente:', saveResponse.filePath)
+          toast.add({
+            severity: 'success',
+            summary: 'Archivo Guardado',
+            detail: `Release notes guardado en: ${saveResponse.filePath}`,
+            life: 4000
+          })
         } else {
           console.error('❌ Error escribiendo archivo:', writeResponse.error)
+          toast.add({
+            severity: 'error',
+            summary: 'Error al Guardar',
+            detail: `No se pudo guardar el archivo: ${writeResponse.error}`,
+            life: 0 // Persiste hasta que el usuario lo cierre
+          })
           throw new Error(`Error escribiendo archivo: ${writeResponse.error}`)
         }
       } else if (saveResponse && saveResponse.canceled) {
@@ -1538,10 +1603,20 @@ const downloadRelease = async (release) => {
       const writeResponse = await window.electronAPI.writeFile(saveResponse.filePath, fileContent)
       if (writeResponse.success) {
         console.log('✅ Release descargado exitosamente:', saveResponse.filePath)
-        alert(`✅ Release descargado en:\n${saveResponse.filePath}`)
+        toast.add({
+          severity: 'success',
+          summary: 'Release Descargado',
+          detail: `Archivo descargado en: ${saveResponse.filePath}`,
+          life: 4000
+        })
       } else {
         console.error('❌ Error escribiendo archivo:', writeResponse.error)
-        alert(`❌ Error escribiendo archivo: ${writeResponse.error}`)
+        toast.add({
+          severity: 'error',
+          summary: 'Error al Descargar',
+          detail: `No se pudo descargar el archivo: ${writeResponse.error}`,
+          life: 0 // Persiste hasta que el usuario lo cierre
+        })
       }
     } else if (saveResponse && saveResponse.canceled) {
       console.log('ℹ️ Usuario canceló la descarga')

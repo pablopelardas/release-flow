@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
+import ToastService from 'primevue/toastservice'
 import { createApp } from 'vue'
 import './style.css' // TailwindCSS primero
 import 'primeicons/primeicons.css'
@@ -21,4 +22,5 @@ app.use(PrimeVue, {
     },
   },
 })
+app.use(ToastService)
 app.mount('#app')
