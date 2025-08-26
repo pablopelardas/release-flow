@@ -160,7 +160,7 @@ export const useRepositoriesStore = defineStore('repositories', {
       try {
         const statusResponse = await window.electronAPI.gitStatus(repo.path)
         const branchResponse = await window.electronAPI.gitGetCurrentBranch(repo.path)
-        
+
         // Get the latest tag using the new method
         const latestTagResponse = await window.electronAPI.gitGetLatestTag(repo.path)
         const lastTag = latestTagResponse.success ? latestTagResponse.data : null

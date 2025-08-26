@@ -638,11 +638,20 @@ const removeRepository = async (repo) => {
 }
 
 const editRepository = (repo) => {
+  console.log('Opening edit dialog for repo:', repo)
+  console.log('repo.is_main_repository type:', typeof repo.is_main_repository, 'value:', repo.is_main_repository)
+  
   editingRepo.value = repo
   editRepoName.value = repo.name
   editRepoPath.value = repo.path
   editRepoTagPrefix.value = repo.tag_prefix || ''
-  editRepoIsMain.value = repo.is_main_repository || false
+  
+  // Convert to boolean properly - handle both 0/1 and true/false
+  // SQLite returns integers, so 1 = true, 0 = false
+  editRepoIsMain.value = repo.is_main_repository === 1 || repo.is_main_repository === true
+  
+  console.log('Setting editRepoIsMain.value to:', editRepoIsMain.value)
+  
   showEditDialog.value = true
 }
 
@@ -686,12 +695,14 @@ const saveEditRepository = async () => {
       is_main_repository: editRepoIsMain.value ? 1 : 0,
     }
     
+    console.log('Updating repository:', editingRepo.value.id, 'with updates:', updates)
+    console.log('Original is_main_repository:', editingRepo.value.is_main_repository)
+    console.log('New is_main_repository:', updates.is_main_repository)
+    
     await repositoriesStore.updateRepository(editingRepo.value.id, updates)
     
-    // If changing from/to main repository, reload to update UI
-    if ((editingRepo.value.is_main_repository ? 1 : 0) !== updates.is_main_repository) {
-      await repositoriesStore.loadRepositories()
-    }
+    // Always reload repositories to ensure UI is updated
+    await repositoriesStore.loadRepositories()
     
     cancelEdit()
   } catch (error) {

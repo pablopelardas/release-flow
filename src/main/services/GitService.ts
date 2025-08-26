@@ -189,7 +189,7 @@ export class GitService {
     try {
       console.log(`[GitService] getLatestTag called for path: ${repoPath}`)
       const git = this.getGitInstance(repoPath)
-      
+
       // Obtener todos los tags con sus fechas usando git for-each-ref
       // Esto nos da los tags ordenados por fecha de commit
       const result = await git.raw([
@@ -197,12 +197,12 @@ export class GitService {
         '--sort=-committerdate',
         '--format=%(refname:short)',
         'refs/tags',
-        '--count=1'
+        '--count=1',
       ])
-      
+
       const latestTag = result.trim()
       console.log(`[GitService] Latest tag by date: ${latestTag || 'none'}`)
-      
+
       return latestTag || null
     } catch (error) {
       console.error(`[GitService] Error getting latest tag:`, error)

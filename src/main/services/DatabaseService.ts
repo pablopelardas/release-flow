@@ -597,7 +597,15 @@ Ver [Guía de Migración](./MIGRATION.md) para más detalles.
       const fields = Object.keys(updates)
         .map((key) => `${key} = ?`)
         .join(', ')
-      const values = Object.values(updates)
+
+      // Convert JavaScript values to SQLite-compatible values
+      const values = Object.values(updates).map((value) => {
+        // Convert boolean to integer for SQLite
+        if (typeof value === 'boolean') {
+          return value ? 1 : 0
+        }
+        return value
+      })
 
       const query = `UPDATE repositories SET ${fields} WHERE id = ?`
       console.log(`[DB] Query: ${query}`)
