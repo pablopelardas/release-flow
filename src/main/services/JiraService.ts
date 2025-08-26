@@ -331,8 +331,11 @@ export class JiraService {
         // #123 (solo números, asumiendo que son del proyecto actual)
         /#(\d+)/g,
       ]
-      
-      console.log('🔧 Patterns generated:', patterns.map(p => p.source))
+
+      console.log(
+        '🔧 Patterns generated:',
+        patterns.map((p) => p.source)
+      )
 
       commits.forEach((commit) => {
         const text = `${commit.subject} ${commit.body || ''}`
@@ -432,40 +435,43 @@ export class JiraService {
         startAt: number
       }
 
-      const issues: JiraIssue[] = (searchData.issues as unknown[]).map((issue: unknown): JiraIssue => {
-        const issueObj = issue as Record<string, unknown>
-        const fields = issueObj.fields as Record<string, unknown>
-        const status = fields.status as Record<string, unknown>
-        const statusCategory = status.statusCategory as Record<string, unknown>
+      const issues: JiraIssue[] = (searchData.issues as unknown[]).map(
+        (issue: unknown): JiraIssue => {
+          const issueObj = issue as Record<string, unknown>
+          const fields = issueObj.fields as Record<string, unknown>
+          const status = fields.status as Record<string, unknown>
+          const statusCategory = status.statusCategory as Record<string, unknown>
 
-        return {
-          id: issueObj.id as string,
-          key: issueObj.key as string,
-          summary: fields.summary as string,
-          description: fields.description as string,
-          status: {
-            name: status.name as string,
-            category: statusCategory.name as string,
-          },
-          issueType: {
-            name: (fields.issuetype as Record<string, unknown>).name as string,
-            iconUrl: (fields.issuetype as Record<string, unknown>).iconUrl as string,
-          },
-          priority: {
-            name: ((fields.priority as Record<string, unknown>)?.name as string) || 'None',
-          },
-          assignee: fields.assignee
-            ? {
-                displayName: (fields.assignee as Record<string, unknown>).displayName as string,
-                emailAddress: (fields.assignee as Record<string, unknown>).emailAddress as string,
-              }
-            : undefined,
-          created: fields.created as string,
-          updated: fields.updated as string,
-          fixVersions: (fields.fixVersions as Array<{id: string, name: string, released: boolean}>) || [],
-          labels: (fields.labels as string[]) || [],
+          return {
+            id: issueObj.id as string,
+            key: issueObj.key as string,
+            summary: fields.summary as string,
+            description: fields.description as string,
+            status: {
+              name: status.name as string,
+              category: statusCategory.name as string,
+            },
+            issueType: {
+              name: (fields.issuetype as Record<string, unknown>).name as string,
+              iconUrl: (fields.issuetype as Record<string, unknown>).iconUrl as string,
+            },
+            priority: {
+              name: ((fields.priority as Record<string, unknown>)?.name as string) || 'None',
+            },
+            assignee: fields.assignee
+              ? {
+                  displayName: (fields.assignee as Record<string, unknown>).displayName as string,
+                  emailAddress: (fields.assignee as Record<string, unknown>).emailAddress as string,
+                }
+              : undefined,
+            created: fields.created as string,
+            updated: fields.updated as string,
+            fixVersions:
+              (fields.fixVersions as Array<{ id: string; name: string; released: boolean }>) || [],
+            labels: (fields.labels as string[]) || [],
+          }
         }
-      })
+      )
 
       return {
         success: true,
@@ -501,7 +507,7 @@ export class JiraService {
       // Obtener el ID del proyecto si no se proporciona
       let projectId: string = versionData.projectId?.toString() || ''
       if (!projectId) {
-        const projectResult = await this.getProject(this.config.projectKey!)
+        const projectResult = await this.getProject(this.config.projectKey || '')
         if (!projectResult.success) {
           return {
             success: false,
@@ -645,24 +651,24 @@ export class JiraService {
   /**
    * Convierte markdown a formato ADF (Atlassian Document Format)
    */
-  private convertMarkdownToADF(markdown: string): any {
-    const content: any[] = []
+  private convertMarkdownToADF(markdown: string): unknown {
+    const content: unknown[] = []
     const lines = markdown.split('\n')
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
-      
+
       if (!line.trim()) {
         // Línea vacía - agregar párrafo vacío
         if (content.length > 0 && content[content.length - 1].type !== 'paragraph') {
           content.push({
             type: 'paragraph',
-            content: []
+            content: [],
           })
         }
         continue
       }
-      
+
       if (line.startsWith('# ')) {
         // Encabezado H1
         content.push({
@@ -671,9 +677,9 @@ export class JiraService {
           content: [
             {
               type: 'text',
-              text: line.substring(2)
-            }
-          ]
+              text: line.substring(2),
+            },
+          ],
         })
       } else if (line.startsWith('## ')) {
         // Encabezado H2
@@ -683,9 +689,9 @@ export class JiraService {
           content: [
             {
               type: 'text',
-              text: line.substring(3)
-            }
-          ]
+              text: line.substring(3),
+            },
+          ],
         })
       } else if (line.startsWith('### ')) {
         // Encabezado H3
@@ -695,15 +701,15 @@ export class JiraService {
           content: [
             {
               type: 'text',
-              text: line.substring(4)
-            }
-          ]
+              text: line.substring(4),
+            },
+          ],
         })
       } else if (line.startsWith('- ') || line.startsWith('* ')) {
         // Lista con viñetas
         const listItems = []
         let j = i
-        
+
         // Recoger todos los elementos de la lista consecutivos
         while (j < lines.length && (lines[j].startsWith('- ') || lines[j].startsWith('* '))) {
           listItems.push({
@@ -714,26 +720,26 @@ export class JiraService {
                 content: [
                   {
                     type: 'text',
-                    text: lines[j].substring(2)
-                  }
-                ]
-              }
-            ]
+                    text: lines[j].substring(2),
+                  },
+                ],
+              },
+            ],
           })
           j++
         }
-        
+
         content.push({
           type: 'bulletList',
-          content: listItems
+          content: listItems,
         })
-        
+
         i = j - 1 // Ajustar el índice
       } else if (/^\d+\. /.test(line)) {
         // Lista numerada
         const listItems = []
         let j = i
-        
+
         // Recoger todos los elementos de la lista numerada consecutivos
         while (j < lines.length && /^\d+\. /.test(lines[j])) {
           const itemText = lines[j].replace(/^\d+\. /, '')
@@ -745,76 +751,77 @@ export class JiraService {
                 content: [
                   {
                     type: 'text',
-                    text: itemText
-                  }
-                ]
-              }
-            ]
+                    text: itemText,
+                  },
+                ],
+              },
+            ],
           })
           j++
         }
-        
+
         content.push({
           type: 'orderedList',
-          content: listItems
+          content: listItems,
         })
-        
+
         i = j - 1 // Ajustar el índice
       } else if (line.startsWith('---')) {
         // Línea horizontal
         content.push({
-          type: 'rule'
+          type: 'rule',
         })
       } else {
         // Párrafo normal con texto formateado
         const paragraphContent = this.parseInlineFormatting(line)
         content.push({
           type: 'paragraph',
-          content: paragraphContent
+          content: paragraphContent,
         })
       }
     }
-    
+
     return {
       type: 'doc',
       version: 1,
-      content
+      content,
     }
   }
 
   /**
    * Parsea formato inline como **bold**, *italic*, `code`, etc.
    */
-  private parseInlineFormatting(text: string): any[] {
-    const content: any[] = []
+  private parseInlineFormatting(text: string): unknown[] {
+    const content: unknown[] = []
     let currentPos = 0
-    
+
     // Patrón para detectar formato inline
     const patterns = [
-      { regex: /\*\*(.*?)\*\*/g, type: 'strong' },     // **bold**
-      { regex: /\*(.*?)\*/g, type: 'em' },             // *italic*
-      { regex: /`(.*?)`/g, type: 'code' },             // `code`
-      { regex: /🚀|📋|✅|⚠️|❌|💬|🔗|🎯/g, type: 'emoji' } // emojis
+      { regex: /\*\*(.*?)\*\*/g, type: 'strong' }, // **bold**
+      { regex: /\*(.*?)\*/g, type: 'em' }, // *italic*
+      { regex: /`(.*?)`/g, type: 'code' }, // `code`
+      { regex: /🚀|📋|✅|⚠️|❌|💬|🔗|🎯/g, type: 'emoji' }, // emojis
     ]
-    
-    const matches: Array<{start: number, end: number, type: string, content: string}> = []
-    
+
+    const matches: Array<{ start: number; end: number; type: string; content: string }> = []
+
     // Encontrar todas las coincidencias
-    patterns.forEach(pattern => {
-      let match
+    patterns.forEach((pattern) => {
+      let match: RegExpExecArray | null
+      // biome-ignore lint/suspicious/noAssignInExpressions: Required for regex matching
       while ((match = pattern.regex.exec(text)) !== null) {
         matches.push({
           start: match.index,
           end: match.index + match[0].length,
           type: pattern.type,
-          content: pattern.type === 'emoji' ? match[0] : match[1]
+          content: pattern.type === 'emoji' ? match[0] : match[1],
         })
       }
     })
-    
+
     // Ordenar matches por posición
     matches.sort((a, b) => a.start - b.start)
-    
+
     // Construir el contenido
     for (const match of matches) {
       // Agregar texto antes del match
@@ -823,68 +830,68 @@ export class JiraService {
         if (plainText) {
           content.push({
             type: 'text',
-            text: plainText
+            text: plainText,
           })
         }
       }
-      
+
       // Agregar el match formateado
       if (match.type === 'strong') {
         content.push({
           type: 'text',
           text: match.content,
-          marks: [{ type: 'strong' }]
+          marks: [{ type: 'strong' }],
         })
       } else if (match.type === 'em') {
         content.push({
           type: 'text',
           text: match.content,
-          marks: [{ type: 'em' }]
+          marks: [{ type: 'em' }],
         })
       } else if (match.type === 'code') {
         content.push({
           type: 'text',
           text: match.content,
-          marks: [{ type: 'code' }]
+          marks: [{ type: 'code' }],
         })
       } else if (match.type === 'emoji') {
         content.push({
           type: 'text',
-          text: match.content
+          text: match.content,
         })
       }
-      
+
       currentPos = match.end
     }
-    
+
     // Agregar texto restante
     if (currentPos < text.length) {
       const remainingText = text.substring(currentPos)
       if (remainingText) {
         content.push({
           type: 'text',
-          text: remainingText
+          text: remainingText,
         })
       }
     }
-    
+
     // Si no hay contenido formateado, devolver texto plano
     if (content.length === 0) {
       content.push({
         type: 'text',
-        text: text
+        text: text,
       })
     }
-    
+
     return content
   }
 
   /**
    * Agrega comentario a múltiples issues
    */
-  async addCommentToIssues(issueKeys: string[], comment: string): Promise<JiraResult<any>> {
+  async addCommentToIssues(issueKeys: string[], comment: string): Promise<JiraResult<unknown>> {
     console.log(`💬 Adding comment to ${issueKeys.length} issues`)
-    
+
     if (!this.config || !this.config.enabled) {
       return {
         success: false,
@@ -894,44 +901,44 @@ export class JiraService {
 
     try {
       const results = []
-      
+
       // Convertir markdown a ADF
       const adfContent = this.convertMarkdownToADF(comment)
       console.log('🎨 Converted markdown to ADF:', JSON.stringify(adfContent, null, 2))
-      
+
       for (const issueKey of issueKeys) {
         console.log(`💬 Adding comment to issue: ${issueKey}`)
-        
+
         const result = await this.makeRequest(`/rest/api/3/issue/${issueKey}/comment`, {
           method: 'POST',
           body: {
-            body: adfContent
-          }
+            body: adfContent,
+          },
         })
-        
+
         results.push({
           issueKey,
           success: result.success,
-          error: result.error
+          error: result.error,
         })
-        
+
         if (result.success) {
           console.log(`✅ Comment added to ${issueKey}`)
         } else {
           console.warn(`⚠️ Failed to add comment to ${issueKey}:`, result.error)
         }
       }
-      
-      const successes = results.filter(r => r.success)
+
+      const successes = results.filter((r) => r.success)
       console.log(`✅ Added comments to ${successes.length}/${issueKeys.length} issues`)
-      
+
       return {
         success: true,
         data: {
           total: issueKeys.length,
           successes: successes.length,
-          results
-        }
+          results,
+        },
       }
     } catch (error) {
       console.error('❌ Error adding comments:', error)
@@ -985,9 +992,9 @@ export class JiraService {
         description: releaseNotes || `Release ${versionName} - Generated by ReleaseFlow`,
         releaseDate,
         released: false,
-        releaseNotesLength: releaseNotes ? releaseNotes.length : 0
+        releaseNotesLength: releaseNotes ? releaseNotes.length : 0,
       })
-      
+
       const versionResult = await this.createVersion({
         name: versionName,
         description: `Release generated automatically by ReleaseFlow`,
@@ -1018,15 +1025,17 @@ export class JiraService {
 
         if (associationResult.success) {
           associatedCount = (associationResult.data as { successes: number }).successes
-          
+
           // 4. Agregar release notes como comentarios a los issues (si hay release notes)
-          if (releaseNotes && releaseNotes.trim()) {
+          if (releaseNotes?.trim()) {
             console.log('💬 Adding release notes as comments to issues...')
             const releaseNotesComment = `🚀 **Release Notes - ${version.name}**\n\n${releaseNotes}`
-            
+
             const commentResult = await this.addCommentToIssues(issueKeys, releaseNotesComment)
             if (commentResult.success) {
-              console.log(`✅ Added release notes comments to ${commentResult.data.successes} issues`)
+              console.log(
+                `✅ Added release notes comments to ${commentResult.data.successes} issues`
+              )
             } else {
               console.warn('⚠️ Failed to add release notes comments, but release was created')
             }
