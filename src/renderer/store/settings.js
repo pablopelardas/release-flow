@@ -34,6 +34,14 @@ export const useSettingsStore = defineStore('settings', {
       backupInterval: 86400000, // 24 horas
     },
 
+    // CodebaseHQ configuration cache
+    codebaseConfig: {
+      accountName: null,
+      username: null,
+      apiKey: null,
+      projectPermalink: null,
+    },
+
     loading: false,
     error: null,
     unsavedChanges: false,
@@ -42,6 +50,15 @@ export const useSettingsStore = defineStore('settings', {
   getters: {
     isDarkTheme: (state) => state.settings.theme === 'dark',
     hasUnsavedChanges: (state) => state.unsavedChanges,
+    
+    // Check if CodebaseHQ is configured globally
+    isCodebaseConfigured: (state) => {
+      return !!(
+        state.codebaseConfig.accountName &&
+        state.codebaseConfig.username &&
+        state.codebaseConfig.apiKey
+      )
+    },
 
     getSettingValue: (state) => (key) => {
       return key.split('.').reduce((obj, k) => obj?.[k], state.settings)
@@ -73,12 +90,37 @@ export const useSettingsStore = defineStore('settings', {
           const dbSettings = JSON.parse(response.data.value)
           this.settings = { ...this.settings, ...dbSettings }
         }
+        
+        // Also load CodebaseHQ configuration
+        await this.loadCodebaseConfig()
       } catch (error) {
         console.error('Error loading settings:', error)
         // No es crítico si no se pueden cargar las configuraciones
         // Se usarán los valores por defecto
       } finally {
         this.setLoading(false)
+      }
+    },
+    
+    async loadCodebaseConfig() {
+      try {
+        const [accountName, username, apiKey, projectPermalink] = await Promise.all([
+          window.electronAPI.dbGetConfig('codebase_account_name'),
+          window.electronAPI.dbGetConfig('codebase_username'),
+          window.electronAPI.dbGetConfig('codebase_api_key'),
+          window.electronAPI.dbGetConfig('codebase_project_permalink'),
+        ])
+        
+        this.codebaseConfig = {
+          accountName: accountName?.success ? accountName.data?.value : null,
+          username: username?.success ? username.data?.value : null,
+          apiKey: apiKey?.success ? apiKey.data?.value : null,
+          projectPermalink: projectPermalink?.success ? projectPermalink.data?.value : null,
+        }
+        
+        console.log('[Settings] CodebaseHQ configured:', this.isCodebaseConfigured)
+      } catch (error) {
+        console.error('Error loading CodebaseHQ config:', error)
       }
     },
 

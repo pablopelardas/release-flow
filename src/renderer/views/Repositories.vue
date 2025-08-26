@@ -89,7 +89,7 @@
         </div>
         
         <!-- Configuration Buttons Row -->
-        <div class="flex space-x-2 mt-3">
+        <div v-if="repo.is_main_repository || settingsStore.isCodebaseConfigured" class="flex space-x-2 mt-3">
           <!-- Configure Secondary Repositories Button for Main Repositories -->
           <button 
             v-if="repo.is_main_repository"
@@ -103,6 +103,7 @@
           
           <!-- Configure CodebaseHQ Button -->
           <button 
+            v-if="settingsStore.isCodebaseConfigured"
             @click="configureCodebaseHQ(repo)"
             class="flex-1 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-400 px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-center space-x-1"
             title="Configurar CodebaseHQ"
@@ -193,7 +194,7 @@
           </div>
 
           <!-- CodebaseHQ Configuration -->
-          <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+          <div v-if="settingsStore.isCodebaseConfigured" class="border-t border-gray-200 dark:border-gray-600 pt-4">
             <div class="flex items-center mb-3">
               <input 
                 type="checkbox"
@@ -420,10 +421,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRepositoriesStore } from '../store'
+import { useRepositoriesStore, useSettingsStore } from '../store'
 
-// Store
+// Stores
 const repositoriesStore = useRepositoriesStore()
+const settingsStore = useSettingsStore()
 
 // Reactive data
 const showAddDialog = ref(false)
@@ -665,7 +667,11 @@ const saveCodebaseConfig = async () => {
 }
 
 onMounted(async () => {
-  await repositoriesStore.loadRepositories()
+  // Load repositories and CodebaseHQ configuration
+  await Promise.all([
+    repositoriesStore.loadRepositories(),
+    settingsStore.loadCodebaseConfig()
+  ])
 })
 </script>
 

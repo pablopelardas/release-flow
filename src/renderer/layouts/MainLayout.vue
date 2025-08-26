@@ -67,7 +67,7 @@
               Releases
             </router-link>
           </li>
-          <li>
+          <li v-if="settingsStore.isCodebaseConfigured">
             <router-link
               :to="{ path: '/activity' }"
               :class="[
@@ -138,9 +138,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Toast from 'primevue/toast'
+import { useSettingsStore } from '../store/settings'
 
 const route = useRoute()
 const isDark = ref(false)
+const settingsStore = useSettingsStore()
 
 const _pageTitle = computed(() => {
   const titles = {
@@ -165,7 +167,7 @@ const _toggleTheme = () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Check for saved theme preference or default to light
   const savedTheme = localStorage.getItem('theme')
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -175,5 +177,8 @@ onMounted(() => {
     document.documentElement.classList.add('dark')
     document.body.classList.add('dark')
   }
+  
+  // Load CodebaseHQ configuration to check if it's configured
+  await settingsStore.loadCodebaseConfig()
 })
 </script>
