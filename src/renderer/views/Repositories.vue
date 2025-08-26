@@ -57,6 +57,14 @@
               <span class="text-sm text-purple-600 dark:text-purple-400">{{ repo.codebase_environment }}</span>
             </div>
           </div>
+          
+          <!-- Last Tag Display -->
+          <div v-if="repo.last_tag" class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Último tag:</span>
+            <span class="text-sm font-semibold text-green-600 dark:text-green-400">
+              <i class="pi pi-tag text-xs mr-1"></i>{{ repo.last_tag }}
+            </span>
+          </div>
         </div>
         
         <div class="flex space-x-2 mt-4">
@@ -80,25 +88,27 @@
           </button>
         </div>
         
-        <!-- Configure Secondary Repositories Button for Main Repositories -->
-        <div v-if="repo.is_main_repository" class="mt-3">
+        <!-- Configuration Buttons Row -->
+        <div class="flex space-x-2 mt-3">
+          <!-- Configure Secondary Repositories Button for Main Repositories -->
           <button 
+            v-if="repo.is_main_repository"
             @click="configureSecondaryRepos(repo)"
-            class="w-full bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-3 py-2 rounded text-sm transition-colors flex items-center justify-center space-x-2"
+            class="flex-1 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-center space-x-1"
+            title="Configurar Repositorios Secundarios"
           >
-            <span>⚙️</span>
-            <span>Configurar Repos Secundarios</span>
+            <span class="text-sm">⚙️</span>
+            <span>Repos Sec.</span>
           </button>
-        </div>
-        
-        <!-- Configure CodebaseHQ Button -->
-        <div class="mt-3">
+          
+          <!-- Configure CodebaseHQ Button -->
           <button 
             @click="configureCodebaseHQ(repo)"
-            class="w-full bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 py-2 rounded text-sm transition-colors flex items-center justify-center space-x-2"
+            class="flex-1 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-400 px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-center space-x-1"
+            title="Configurar CodebaseHQ"
           >
-            <i class="pi pi-cloud-upload"></i>
-            <span>Configurar CodebaseHQ</span>
+            <i class="pi pi-cloud-upload text-xs"></i>
+            <span>CodebaseHQ</span>
           </button>
         </div>
       </div>

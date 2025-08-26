@@ -38,14 +38,12 @@ export const useRepositoriesStore = defineStore('repositories', {
         if (response.success) {
           this.repositories = response.data.repositories || []
 
-          // Actualizar estado Git para repositorios que no tienen información
+          // Actualizar estado Git y obtener último tag para todos los repositorios
           for (const repo of this.repositories) {
-            if (repo.current_branch === null || repo.is_clean === null) {
-              // No esperar la respuesta para no bloquear la UI
-              this.refreshRepositoryStatus(repo.id).catch((error) => {
-                console.warn(`Failed to refresh status for ${repo.name}:`, error)
-              })
-            }
+            // No esperar la respuesta para no bloquear la UI
+            this.refreshRepositoryStatus(repo.id).catch((error) => {
+              console.warn(`Failed to refresh status for ${repo.name}:`, error)
+            })
           }
         } else {
           throw new Error(response.error || 'Error loading repositories')
@@ -162,10 +160,19 @@ export const useRepositoriesStore = defineStore('repositories', {
       try {
         const statusResponse = await window.electronAPI.gitStatus(repo.path)
         const branchResponse = await window.electronAPI.gitGetCurrentBranch(repo.path)
+        
+        // Get the last tag
+        const tagsResponse = await window.electronAPI.gitGetTags(repo.path)
+        let lastTag = null
+        if (tagsResponse.success && tagsResponse.data && tagsResponse.data.length > 0) {
+          // Tags are returned in chronological order, get the last one
+          lastTag = tagsResponse.data[tagsResponse.data.length - 1]
+        }
 
         const updates = {
           current_branch: branchResponse.success ? branchResponse.data : repo.current_branch,
           is_clean: statusResponse.success ? statusResponse.data.isClean : repo.is_clean,
+          last_tag: lastTag,
           last_updated: new Date().toISOString(),
         }
 
