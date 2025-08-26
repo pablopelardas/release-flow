@@ -136,12 +136,14 @@ export class DatabaseService {
         current_branch TEXT,
         is_clean BOOLEAN,
         tag_prefix TEXT DEFAULT '',
+        last_tag TEXT,
         is_main_repository BOOLEAN DEFAULT 0,
         active BOOLEAN DEFAULT 1,
         codebase_repository_permalink TEXT,
         codebase_environment TEXT DEFAULT 'production',
         codebase_servers TEXT,
         codebase_enabled BOOLEAN DEFAULT 0,
+        last_updated DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
