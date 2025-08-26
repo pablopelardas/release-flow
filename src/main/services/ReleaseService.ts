@@ -516,12 +516,13 @@ export class ReleaseService {
     mainRepoId: number,
     mainRepoName: string,
     mainRepoPath: string,
-    secondaryRepositories: Array<{ id: number; name: string; path: string }>,
+    mainRepoTagPrefix: string | undefined,
+    secondaryRepositories: Array<{ id: number; name: string; path: string; tag_prefix?: string }>,
     targetVersion: string
   ): Promise<UnifiedReleaseData> {
     try {
       // Obtener el último tag del repositorio principal para determinar el rango de commits
-      const existingTags = await this.gitService.getTags(mainRepoPath, true)
+      const existingTags = await this.gitService.getTags(mainRepoPath, true, mainRepoTagPrefix)
       const lastTag = existingTags.length > 0 ? existingTags[0] : null
 
       // Recopilar datos del repositorio principal
@@ -545,7 +546,7 @@ export class ReleaseService {
       for (const secondaryRepo of secondaryRepositories) {
         try {
           // Obtener el último tag del repositorio secundario
-          const secondaryTags = await this.gitService.getTags(secondaryRepo.path, true)
+          const secondaryTags = await this.gitService.getTags(secondaryRepo.path, true, secondaryRepo.tag_prefix)
           const secondaryLastTag = secondaryTags.length > 0 ? secondaryTags[0] : null
 
           // Obtener commits desde el último tag

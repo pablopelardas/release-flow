@@ -125,17 +125,56 @@ export class GitService {
    */
   validateTagFormat(tagName: string): boolean {
     // Acepta formatos más flexibles: v1.0.0, 1.0.0, UtilitiesAPIv1.0.0, APIv2.3.1, etc.
+    // También acepta versiones de 4 números: 1.0.1.187, v1.0.6.267, etc.
+    
     // Extraer la parte de versión removiendo prefijos comunes
     const cleanVersion = tagName
       .replace(/^v/, '') // v1.0.0 -> 1.0.0
       .replace(/^[A-Za-z]+v?/, '') // UtilitiesAPIv1.0.0 -> 1.0.0, APIv2.3.1 -> 2.3.1
       .replace(/^[^0-9]*/, '') // Cualquier otro prefijo no numérico
 
-    console.log(
-      `[GitService] validateTagFormat - Original: ${tagName}, Clean: ${cleanVersion}, Valid: ${semver.valid(cleanVersion) !== null}`
-    )
+    // Verificar si es semver estándar (3 números)
+    const isSemver = semver.valid(cleanVersion) !== null
+    
+    // Verificar si es versión de 4 números (ej: 1.0.1.187)
+    const fourNumberPattern = /^\d+\.\d+\.\d+\.\d+$/
+    const isFourNumber = fourNumberPattern.test(cleanVersion)
 
-    return semver.valid(cleanVersion) !== null
+    const isValid = isSemver || isFourNumber
+
+
+    return isValid
+  }
+
+  /**
+   * Compara dos versiones (semver de 3 números o versiones de 4 números)
+   * Retorna: -1 si a < b, 0 si a === b, 1 si a > b
+   */
+  private compareVersions(versionA: string, versionB: string): number {
+    // Intentar comparar con semver primero
+    try {
+      if (semver.valid(versionA) && semver.valid(versionB)) {
+        return semver.compare(versionA, versionB)
+      }
+    } catch (err) {
+      // Si falla semver, usar comparación manual
+    }
+
+    // Comparación manual para versiones de 4 números o mixtas
+    const partsA = versionA.split('.').map(n => parseInt(n, 10) || 0)
+    const partsB = versionB.split('.').map(n => parseInt(n, 10) || 0)
+    
+    // Hacer que ambos arrays tengan la misma longitud
+    const maxLength = Math.max(partsA.length, partsB.length)
+    while (partsA.length < maxLength) partsA.push(0)
+    while (partsB.length < maxLength) partsB.push(0)
+    
+    for (let i = 0; i < maxLength; i++) {
+      if (partsA[i] < partsB[i]) return -1
+      if (partsA[i] > partsB[i]) return 1
+    }
+    
+    return 0
   }
 
   /**
@@ -185,25 +224,39 @@ export class GitService {
   /**
    * Obtiene el último tag del repositorio (más reciente por fecha)
    */
-  async getLatestTag(repoPath: string): Promise<string | null> {
+  async getLatestTag(repoPath: string, tagPrefix?: string): Promise<string | null> {
     try {
-      console.log(`[GitService] getLatestTag called for path: ${repoPath}`)
       const git = this.getGitInstance(repoPath)
 
-      // Obtener todos los tags con sus fechas usando git for-each-ref
-      // Esto nos da los tags ordenados por fecha de commit
-      const result = await git.raw([
-        'for-each-ref',
-        '--sort=-committerdate',
-        '--format=%(refname:short)',
-        'refs/tags',
-        '--count=1',
-      ])
+      // Siempre usar comandos Git directos para evitar cache
+      let result: string
+      
+      if (tagPrefix && tagPrefix.trim()) {
+        // Con prefijo: obtener todos los tags que coincidan con el prefijo y ordenar por fecha
+        result = await git.raw([
+          'for-each-ref',
+          '--sort=-committerdate',
+          '--format=%(refname:short)',
+          'refs/tags',
+          `--merged=HEAD`
+        ])
+        
+        const allTags = result.trim().split('\n').filter(tag => tag && tag.startsWith(tagPrefix.trim()))
+        const latestTag = allTags.length > 0 ? allTags[0] : null
+        return latestTag
+      } else {
+        // Sin prefijo: obtener el último tag por fecha
+        result = await git.raw([
+          'for-each-ref',
+          '--sort=-committerdate',
+          '--format=%(refname:short)',
+          'refs/tags',
+          '--count=1',
+        ])
 
-      const latestTag = result.trim()
-      console.log(`[GitService] Latest tag by date: ${latestTag || 'none'}`)
-
-      return latestTag || null
+        const latestTag = result.trim()
+        return latestTag || null
+      }
     } catch (error) {
       console.error(`[GitService] Error getting latest tag:`, error)
       return null
@@ -213,23 +266,23 @@ export class GitService {
   /**
    * Obtiene lista de tags del repositorio
    */
-  async getTags(repoPath: string, sortBySemver = false): Promise<string[]> {
+  async getTags(repoPath: string, sortBySemver = false, tagPrefix?: string): Promise<string[]> {
     try {
-      console.log(`[GitService] getTags called for path: ${repoPath}`)
       const git = this.getGitInstance(repoPath)
       const tags = await git.tags()
 
-      console.log(`[GitService] Raw tags from git.tags():`, tags)
-      console.log(`[GitService] tags.all:`, tags.all)
+      // Filtrar por prefijo si se proporciona
+      let allTags = tags.all
+      if (tagPrefix && tagPrefix.trim()) {
+        allTags = tags.all.filter(tag => tag.startsWith(tagPrefix.trim()))
+      }
 
       if (!sortBySemver) {
-        console.log(`[GitService] Returning unsorted tags:`, tags.all)
-        return tags.all
+        return allTags
       }
 
       // Ordenar por versionado semántico (descendente)
-      const filteredTags = tags.all.filter((tag) => this.validateTagFormat(tag))
-      console.log(`[GitService] Filtered tags:`, filteredTags)
+      const filteredTags = allTags.filter((tag) => this.validateTagFormat(tag))
 
       const sortedTags = filteredTags.sort((a, b) => {
         // Usar la misma lógica de limpieza que validateTagFormat
@@ -241,14 +294,196 @@ export class GitService {
           .replace(/^v/, '')
           .replace(/^[A-Za-z]+v?/, '')
           .replace(/^[^0-9]*/, '')
-        return semver.rcompare(versionA, versionB)
+        // Orden descendente (más reciente primero)
+        return this.compareVersions(versionB, versionA)
       })
 
-      console.log(`[GitService] Sorted tags:`, sortedTags)
       return sortedTags
     } catch (error) {
       console.error(`[GitService] Error in getTags:`, error)
       throw new Error(`Error obteniendo tags: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * Obtiene información detallada de todos los tags
+   */
+  async getTagsWithDetails(repoPath: string, sortBySemver = false, tagPrefix?: string): Promise<Array<{name: string, date: string, message: string}>> {
+    try {
+      const git = this.getGitInstance(repoPath)
+      const tags = await git.tags()
+
+      // Filtrar por prefijo si se proporciona
+      let allTags = tags.all
+      if (tagPrefix && tagPrefix.trim()) {
+        allTags = tags.all.filter(tag => tag.startsWith(tagPrefix.trim()))
+      }
+
+      const tagDetails = []
+      
+      for (const tagName of allTags) {
+        try {
+          // Get tag details including date and message
+          const tagInfo = await git.show([tagName, '--format=%ai|%s', '--no-patch'])
+          const [date, ...messageParts] = tagInfo.split('|')
+          const message = messageParts.join('|') || 'Sin mensaje'
+          
+          tagDetails.push({
+            name: tagName,
+            date: date.trim(),
+            message: message.trim()
+          })
+        } catch (tagError) {
+          console.warn(`[GitService] Could not get details for tag ${tagName}:`, tagError)
+          tagDetails.push({
+            name: tagName,
+            date: new Date().toISOString(),
+            message: 'Sin mensaje'
+          })
+        }
+      }
+
+      if (!sortBySemver) {
+        return tagDetails
+      }
+
+      // Filter and sort by semver
+      const filteredTags = tagDetails.filter(tag => this.validateTagFormat(tag.name))
+      
+      const sortedTags = filteredTags.sort((a, b) => {
+        const versionA = a.name
+          .replace(/^v/, '')
+          .replace(/^[A-Za-z]+v?/, '')
+          .replace(/^[^0-9]*/, '')
+        const versionB = b.name
+          .replace(/^v/, '')
+          .replace(/^[A-Za-z]+v?/, '')
+          .replace(/^[^0-9]*/, '')
+        // Orden descendente (más reciente primero)
+        return this.compareVersions(versionB, versionA)
+      })
+
+      return sortedTags
+    } catch (error) {
+      console.error(`[GitService] Error in getTagsWithDetails:`, error)
+      throw new Error(`Error obteniendo detalles de tags: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * Extrae el tipo de commit del mensaje
+   */
+  private extractCommitType(message: string): string {
+    if (!message) return 'other'
+    
+    const lowerMessage = message.toLowerCase()
+    const conventionalCommitMatch = message.match(
+      /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
+    )
+    
+    if (conventionalCommitMatch) {
+      return conventionalCommitMatch[1]
+    }
+    
+    // Fallback to keyword detection
+    if (lowerMessage.includes('feat') || lowerMessage.includes('add')) return 'feat'
+    else if (lowerMessage.includes('fix') || lowerMessage.includes('bug')) return 'fix'
+    else if (lowerMessage.includes('doc')) return 'docs'
+    else if (lowerMessage.includes('refactor')) return 'refactor'
+    else if (lowerMessage.includes('test')) return 'test'
+    else if (lowerMessage.includes('chore')) return 'chore'
+    else if (lowerMessage.includes('style')) return 'style'
+    else if (lowerMessage.includes('perf')) return 'perf'
+    
+    return 'other'
+  }
+
+  /**
+   * Extrae el scope del mensaje de commit
+   */
+  private extractCommitScope(message: string): string {
+    if (!message) return ''
+    
+    const conventionalCommitMatch = message.match(
+      /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
+    )
+    
+    return conventionalCommitMatch?.[2] || ''
+  }
+
+  /**
+   * Obtiene commits entre dos tags o desde un tag hasta HEAD
+   */
+  async getCommitsBetweenTags(repoPath: string, fromTag?: string, toTag?: string): Promise<GitCommit[]> {
+    try {
+      const git = this.getGitInstance(repoPath)
+      
+      let gitCommand: string[]
+      let debugMessage = ''
+      
+      if (!fromTag && !toTag) {
+        gitCommand = ['log', '--pretty=format:%H|%ai|%s|%an|%ae']
+        debugMessage = 'Obteniendo todos los commits'
+      } else if (!fromTag && toTag) {
+        gitCommand = ['log', `${toTag}`, '--pretty=format:%H|%ai|%s|%an|%ae']
+        debugMessage = `Obteniendo commits desde el inicio hasta ${toTag}`
+      } else if (fromTag && !toTag) {
+        gitCommand = ['log', `${fromTag}..HEAD`, '--pretty=format:%H|%ai|%s|%an|%ae']
+        debugMessage = `Obteniendo commits desde ${fromTag} hasta HEAD`
+      } else {
+        gitCommand = ['log', `${fromTag}..${toTag}`, '--pretty=format:%H|%ai|%s|%an|%ae']
+        debugMessage = `Obteniendo commits entre ${fromTag} y ${toTag}`
+      }
+      
+      // DEBUG: Primero verificar el conteo con rev-list
+      if (fromTag && !toTag) {
+        const countResult = await git.raw(['rev-list', '--count', `${fromTag}..HEAD`])
+        const expectedCount = parseInt(countResult.trim(), 10)
+        console.log(`🔍 [DEBUG] ${debugMessage} - Conteo esperado: ${expectedCount}`)
+        
+        if (expectedCount === 0) {
+          console.log(`✅ [DEBUG] No hay commits desde ${fromTag}, retornando array vacío`)
+          return []
+        }
+      }
+      
+      const result = await git.raw(gitCommand)
+      
+      // DEBUG: Mostrar el resultado raw
+      if (result.trim().length > 0) {
+        const lines = result.trim().split('\n')
+        console.log(`🔍 [DEBUG] Comando ejecutado: git ${gitCommand.join(' ')}`)
+        console.log(`🔍 [DEBUG] Resultado raw tiene ${lines.length} líneas`)
+        if (lines.length <= 3) {
+          console.log(`🔍 [DEBUG] Líneas del resultado:`, lines)
+        }
+      } else {
+        console.log(`✅ [DEBUG] ${debugMessage} - No hay commits, resultado vacío`)
+        return []
+      }
+      
+      const lines = result.trim().split('\n').filter(line => line.trim())
+      
+      const commits = lines.map((line): GitCommit => {
+        const [hash, date, message, author, email] = line.split('|')
+        return {
+          hash: hash,
+          message: message,
+          subject: message,
+          author: author,
+          date: date,
+          type: this.extractCommitType(message),
+          scope: this.extractCommitScope(message),
+          refs: '',
+        }
+      })
+      
+      console.log(`📊 [RESULT] ${debugMessage} - Encontrados ${commits.length} commits`)
+      return commits
+      
+    } catch (error) {
+      console.error(`[GitService] Error in getCommitsBetweenTags:`, error)
+      throw new Error(`Error obteniendo commits entre tags: ${(error as Error).message}`)
     }
   }
 
@@ -340,56 +575,6 @@ export class GitService {
     }
   }
 
-  /**
-   * Obtiene commits entre dos tags
-   */
-  async getCommitsBetweenTags(
-    repoPath: string,
-    fromTag: string,
-    toTag: string
-  ): Promise<GitCommit[]> {
-    try {
-      const git = this.getGitInstance(repoPath)
-      const log = await git.log({ from: fromTag, to: toTag })
-
-      return log.all.map((commit) => {
-        // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
-        const message = commit.message.trim()
-        const conventionalMatch = message.match(
-          /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
-        )
-
-        let type = 'other'
-        let scope = ''
-        let subject = message
-
-        if (conventionalMatch) {
-          type = conventionalMatch[1]
-          scope = conventionalMatch[2] || ''
-          subject = conventionalMatch[3]
-        } else {
-          // Si no es conventional commit, intentar detectar el tipo por palabras clave
-          const lowerMessage = message.toLowerCase()
-          if (lowerMessage.includes('feat') || lowerMessage.includes('add')) type = 'feat'
-          else if (lowerMessage.includes('fix') || lowerMessage.includes('bug')) type = 'fix'
-          else if (lowerMessage.includes('doc')) type = 'docs'
-        }
-
-        return {
-          hash: commit.hash,
-          message: commit.message,
-          subject: subject,
-          type: type,
-          scope: scope,
-          author: commit.author_name || 'Unknown',
-          date: commit.date,
-          refs: commit.refs || '',
-        }
-      })
-    } catch (error) {
-      throw new Error(`Error obteniendo commits: ${(error as Error).message}`)
-    }
-  }
 
   /**
    * Obtiene los últimos commits del repositorio
@@ -433,7 +618,7 @@ export class GitService {
           scope: scope,
           author: commit.author_name || 'Unknown',
           date: commit.date,
-          refs: commit.refs || '',
+          refs: '',
         }
       })
 
@@ -455,10 +640,11 @@ export class GitService {
   async getBaseTagForReleaseType(
     repoPath: string,
     currentVersion: string,
-    releaseType: 'major' | 'minor' | 'patch'
+    releaseType: 'major' | 'minor' | 'patch',
+    tagPrefix?: string
   ): Promise<string | null> {
     try {
-      const tags = await this.getTags(repoPath, true) // Ordenados por semver desc
+      const tags = await this.getTags(repoPath, true, tagPrefix) // Ordenados por semver desc y filtrados por prefijo
 
       if (tags.length === 0) return null
 
@@ -477,73 +663,84 @@ export class GitService {
       let baseTag: string | null = null
 
       switch (releaseType) {
-        case 'patch':
-          // Para patch: desde la versión actual hasta HEAD
-          // Buscar el tag exacto de la versión actual
-          baseTag = versionTags.find((vt) => vt.version === currentVersion)?.tag || null
-          break
-
-        case 'minor': {
-          // Para minor: desde el último minor (x.y.0) hasta HEAD
-          // Ejemplo: si estamos en 1.1.0 → 1.2.0, comparar desde 1.1.0
-          // Si estamos en 1.1.3 → 1.2.0, comparar desde 1.1.0 (inicio del minor actual)
-          const [, currentMinorNum, _currentPatch] = currentVersion.split('.').map(Number)
-
-          // Buscar el tag base del minor actual (x.currentMinor.0)
-          baseTag =
-            versionTags.find((vt) => {
+        case 'patch': {
+          // Para patch: buscar el último patch del minor actual
+          const [currentMajor, currentMinor, currentPatch] = currentVersion.split('.').map(Number)
+          
+          // Primero buscar el tag exacto de la versión anterior (patch - 1)
+          const previousPatchVersion = `${currentMajor}.${currentMinor}.${Math.max(0, currentPatch - 1)}`
+          baseTag = versionTags.find((vt) => vt.version === previousPatchVersion)?.tag || null
+          
+          // Si no encuentra, buscar cualquier tag del mismo major.minor pero menor patch
+          if (!baseTag) {
+            baseTag = versionTags.find((vt) => {
               const [major, minor, patch] = vt.version.split('.').map(Number)
-              return major === currentMajor && minor === currentMinorNum && patch === 0
+              return major === currentMajor && minor === currentMinor && patch < currentPatch
             })?.tag || null
-
-          // Si no encuentra x.y.0, buscar el primer tag del minor actual
-          if (!baseTag) {
-            baseTag =
-              versionTags
-                .filter((vt) => {
-                  const [major, minor] = vt.version.split('.').map(Number)
-                  return major === currentMajor && minor === currentMinorNum
-                })
-                .pop()?.tag || null // El más viejo del minor actual
           }
-
-          // Si aún no encuentra (raro caso), usar el tag actual
+          
+          // Como último recurso, usar el último tag disponible del prefijo
           if (!baseTag) {
-            baseTag = versionTags.find((vt) => vt.version === currentVersion)?.tag || null
+            baseTag = versionTags[0]?.tag || null
           }
           break
         }
 
-        case 'major':
-          // Para major: desde el último tag de la versión major anterior hasta HEAD
-          baseTag =
-            versionTags.find((vt) => {
-              const [major] = vt.version.split('.').map(Number)
-              return major === currentMajor - 1
-            })?.tag || null
-          // Si no encuentra, buscar cualquier tag anterior
+        case 'minor': {
+          // Para minor: incluir todos los patches del minor anterior
+          // Ejemplo: 1.0.x → 1.1.0, buscar el primer tag 1.0.0 (inicio del minor actual)
+          const [currentMajor, currentMinor] = currentVersion.split('.').map(Number)
+          
+          // Buscar el primer tag del minor actual (major.currentMinor.0)
+          baseTag = versionTags.find((vt) => {
+            const [major, minor, patch] = vt.version.split('.').map(Number)
+            return major === currentMajor && minor === currentMinor && patch === 0
+          })?.tag || null
+          
+          // Si no encuentra x.y.0, buscar el primer tag del minor actual (el más viejo)
           if (!baseTag) {
-            baseTag =
-              versionTags.filter((vt) => {
-                const [major] = vt.version.split('.').map(Number)
-                return major < currentMajor
-              })[0]?.tag || null // El primero (más nuevo) anterior
+            const minorTags = versionTags.filter((vt) => {
+              const [major, minor] = vt.version.split('.').map(Number)
+              return major === currentMajor && minor === currentMinor
+            })
+            baseTag = minorTags[minorTags.length - 1]?.tag || null // El último en el array = el más viejo
+          }
+          
+          // Como último recurso, usar el último tag disponible
+          if (!baseTag) {
+            baseTag = versionTags[versionTags.length - 1]?.tag || null // El más viejo de todos
           }
           break
+        }
+
+        case 'major': {
+          // Para major: incluir todos los minors y patches del major anterior
+          // Ejemplo: 1.x.x → 2.0.0, buscar el primer tag 1.0.0 (inicio del major actual)
+          const [currentMajor] = currentVersion.split('.').map(Number)
+          
+          // Buscar el primer tag del major actual (major.0.0)
+          baseTag = versionTags.find((vt) => {
+            const [major, minor, patch] = vt.version.split('.').map(Number)
+            return major === currentMajor && minor === 0 && patch === 0
+          })?.tag || null
+          
+          // Si no encuentra x.0.0, buscar el primer tag del major actual (el más viejo)
+          if (!baseTag) {
+            const majorTags = versionTags.filter((vt) => {
+              const [major] = vt.version.split('.').map(Number)
+              return major === currentMajor
+            })
+            baseTag = majorTags[majorTags.length - 1]?.tag || null // El último en el array = el más viejo
+          }
+          
+          // Como último recurso, usar el último tag disponible
+          if (!baseTag) {
+            baseTag = versionTags[versionTags.length - 1]?.tag || null // El más viejo de todos
+          }
+          break
+        }
       }
 
-      console.log(`[GitService] Base tag for ${releaseType} release:`)
-      console.log(`  Current version: ${currentVersion}`)
-      console.log(
-        `  Next version: ${
-          releaseType === 'major'
-            ? `${currentMajor + 1}.0.0`
-            : releaseType === 'minor'
-              ? `${currentMajor}.${currentMinor + 1}.0`
-              : `${currentMajor}.${currentMinor}.${currentVersion.split('.')[2] ? parseInt(currentVersion.split('.')[2], 10) + 1 : 1}`
-        }`
-      )
-      console.log(`  Base tag selected: ${baseTag}`)
       return baseTag
     } catch (error) {
       console.error(`[GitService] Error getting base tag:`, error)
@@ -555,27 +752,31 @@ export class GitService {
    * Obtiene commits desde el último tag hasta HEAD
    */
   async getCommitsSinceLastTag(
-    repoPath: string
+    repoPath: string,
+    tagPrefix?: string
   ): Promise<GitResult<{ commits: GitCommit[]; fromTag?: string }>> {
     try {
       const git = this.getGitInstance(repoPath)
 
-      // Obtener el último tag
-      const tags = await git.tag(['--sort=-version:refname'])
-      const tagList = tags.split('\n').filter((tag) => tag.trim())
+      // Obtener el último tag (con filtro por prefijo si se especifica)
+      const lastTag = await this.getLatestTag(repoPath, tagPrefix)
 
-      if (tagList.length === 0) {
+      if (!lastTag) {
         // Si no hay tags, obtener los últimos 20 commits
         return this.getCommits(repoPath, 20)
       }
 
-      const lastTag = tagList[0].trim()
-      console.log(`[Git] Getting commits since last tag: ${lastTag}`)
+      // Usar getCommitsBetweenTags que ya está optimizado
+      const commitsBetween = await this.getCommitsBetweenTags(repoPath, lastTag)
+      const relevantCommits = commitsBetween.map(commit => ({
+        hash: commit.hash,
+        date: commit.date,
+        message: commit.message,
+        author_name: commit.author,
+        author_email: commit.author
+      }))
 
-      // Obtener commits desde el último tag hasta HEAD
-      const log = await git.log({ from: lastTag, to: 'HEAD' })
-
-      const commits = log.all.map((commit) => {
+      const commits = relevantCommits.map((commit) => {
         // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
         const message = commit.message.trim()
         const conventionalMatch = message.match(
@@ -606,7 +807,7 @@ export class GitService {
           scope: scope,
           author: commit.author_name || 'Unknown',
           date: commit.date,
-          refs: commit.refs || '',
+          refs: '',
         }
       })
 
@@ -628,18 +829,18 @@ export class GitService {
   async getCommitsForReleaseType(
     repoPath: string,
     currentVersion: string,
-    releaseType: 'major' | 'minor' | 'patch'
+    releaseType: 'major' | 'minor' | 'patch',
+    tagPrefix?: string
   ): Promise<GitResult<{ commits: GitCommit[]; fromTag?: string; toTag: string }>> {
     try {
       const git = this.getGitInstance(repoPath)
 
       // Obtener el tag base según el tipo de release
-      const baseTag = await this.getBaseTagForReleaseType(repoPath, currentVersion, releaseType)
+      const baseTag = await this.getBaseTagForReleaseType(repoPath, currentVersion, releaseType, tagPrefix)
 
       if (!baseTag) {
         // Si no hay tag base, obtener los últimos 20 commits
-        console.log(`[GitService] No base tag found, getting recent commits`)
-        const recentCommits = await this.getCommits(repoPath, 20)
+          const recentCommits = await this.getCommits(repoPath, 20)
         return {
           success: recentCommits.success,
           data: {
@@ -651,52 +852,10 @@ export class GitService {
         }
       }
 
-      console.log(`[GitService] Getting commits from ${baseTag} to HEAD`)
 
-      // Obtener commits desde el tag base hasta HEAD
-      const log = await git.log({ from: baseTag, to: 'HEAD' })
+      // Usar getCommitsBetweenTags que ya tiene el debugging optimizado
+      const commits = await this.getCommitsBetweenTags(repoPath, baseTag)
 
-      const commits = log.all.map((commit) => {
-        // Parsear mensaje de commit para obtener tipo y subject (estilo conventional commits)
-        const message = commit.message.trim()
-        const conventionalMatch = message.match(
-          /^(feat|fix|docs|style|refactor|perf|test|chore)(?:\(([^)]+)\))?\s*:\s*(.+)/
-        )
-
-        let type = 'other'
-        let scope = ''
-        let subject = message
-
-        if (conventionalMatch) {
-          type = conventionalMatch[1]
-          scope = conventionalMatch[2] || ''
-          subject = conventionalMatch[3]
-        } else {
-          // Si no es conventional commit, intentar detectar el tipo por palabras clave
-          const lowerMessage = message.toLowerCase()
-          if (lowerMessage.includes('feat') || lowerMessage.includes('add')) type = 'feat'
-          else if (
-            lowerMessage.includes('fix') ||
-            lowerMessage.includes('bug') ||
-            lowerMessage.includes('hotfix')
-          )
-            type = 'fix'
-          else if (lowerMessage.includes('doc')) type = 'docs'
-        }
-
-        return {
-          hash: commit.hash,
-          message: commit.message,
-          subject: subject,
-          type: type,
-          scope: scope,
-          author: commit.author_name || 'Unknown',
-          date: commit.date,
-          refs: commit.refs || '',
-        }
-      })
-
-      console.log(`[GitService] Found ${commits.length} commits between ${baseTag} and HEAD`)
 
       return {
         success: true,

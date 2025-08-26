@@ -729,9 +729,8 @@ const selectRepository = async (repo) => {
   
   // Obtener la versión actual del repositorio desde Git (último tag)
   try {
-    console.log(`🔍 Obteniendo tags para repo: ${repo.name} en path: ${repo.path}`)
-    const tagsResponse = await window.electronAPI.gitGetTags(repo.path, true)
-    console.log('📋 Tags response:', tagsResponse)
+    console.log(`🔍 Obteniendo tags para repo: ${repo.name} en path: ${repo.path}, prefix: ${repo.tag_prefix}`)
+    const tagsResponse = await window.electronAPI.gitGetTags(repo.path, true, repo.tag_prefix)
     
     if (tagsResponse.success && tagsResponse.data && tagsResponse.data.length > 0) {
       // getTags devuelve array de strings directamente, no objetos con .name
@@ -747,14 +746,7 @@ const selectRepository = async (repo) => {
       }
       
       currentVersion.value = latestTag
-      console.log(`✅ Version actual del repo ${repo.name}: ${currentVersion.value}`)
-      console.log('🏷️ Latest tag raw:', rawTag)
-      console.log('🏷️ Tag prefix:', repo.tag_prefix || 'none')
-      console.log('🔄 Preview versions:', {
-        major: getVersionPreview('major'),
-        minor: getVersionPreview('minor'), 
-        patch: getVersionPreview('patch')
-      })
+      // Versión actual establecida correctamente
     } else {
       currentVersion.value = '0.0.0' // Si no hay tags, empezar desde 0.0.0
       console.log(`⚠️ No hay tags en ${repo.name}, usando version inicial: ${currentVersion.value}`)
@@ -873,26 +865,40 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
   try {
     console.log('🔄 Generating unified changelog with template:', selectedTemplate.value.name)
     
-    // Generate changelog for main repository
+    // Generate changelog for main repository  
+    const targetVersion = getFinalVersion()
+    console.log(`🎯 Target version for main repository: ${targetVersion}`)
+    console.log(`📋 Current version (last tag): ${currentVersion.value}`)
+    
+    // Usar lógica de semantic versioning inteligente
+    console.log(`🔄 Using semantic versioning logic - version type: ${versionType.value}`)
+    console.log(`🎯 Target version: ${targetVersion}, Current version: ${currentVersion.value}`)
+    
     const mainCommitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
       selectedRepository.value.path,
-      currentVersion.value,
-      versionType.value
+      targetVersion,
+      versionType.value,
+      selectedRepository.value.tag_prefix
     )
     
     if (!mainCommitsResponse.success) {
       throw new Error(`Error obteniendo commits del repositorio principal: ${mainCommitsResponse.error}`)
     }
     
+    const mainCommitsResponse_data = mainCommitsResponse.data || {}
+    const mainCommitsData = mainCommitsResponse_data.commits || mainCommitsResponse_data || []
+    console.log(`📋 Main repository commits data:`, mainCommitsResponse_data)
+    console.log(`📊 Main repository commits array: ${Array.isArray(mainCommitsData)} - length: ${mainCommitsData.length}`)
+    
     const mainTemplateData = {
       version: getFinalVersion(),
       date: new Date(),
       type: versionType.value,
       repository: selectedRepository.value.name,
-      commits: mainCommitsResponse.data.commits || [],
-      fromTag: mainCommitsResponse.data.fromTag || 'inicio',
-      toTag: mainCommitsResponse.data.toTag || 'HEAD',
-      commitsCount: mainCommitsResponse.data.commits?.length || 0,
+      commits: mainCommitsData,
+      fromTag: mainCommitsResponse_data.fromTag || (currentVersion.value ? `${selectedRepository.value.tag_prefix || ''}${currentVersion.value}` : 'inicio'),
+      toTag: 'HEAD',
+      commitsCount: mainCommitsData.length,
       baseVersion: currentVersion.value,
       releaseType: versionType.value,
       author: 'Usuario'
@@ -906,9 +912,8 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
     }
     
     // Clean automatic generation text from individual changelogs
-    console.log('🔍 MAIN CHANGELOG BEFORE CLEANING:', mainChangelogResponse.substring(0, 500))
+    // Limpiar texto de generación automática del changelog principal
     const cleanMainChangelog = cleanAutomaticGenerationText(mainChangelogResponse)
-    console.log('🧹 MAIN CHANGELOG AFTER CLEANING:', cleanMainChangelog.substring(0, 500))
     
     // Start unified changelog with main repository
     let unifiedChangelog = `# ${selectedRepository.value.name} - Release ${getFinalVersion()}\n\n`
@@ -920,23 +925,31 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
       try {
         console.log(`📦 Generating changelog for secondary repository: ${secondaryRepo.name}`)
         
-        // Get commits for this secondary repository
+        // Get commits for this secondary repository using semantic versioning logic
+        console.log(`📦 Getting commits for secondary repository ${secondaryRepo.name} with semantic versioning`)
+        
         const secondaryCommitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
           secondaryRepo.path,
-          currentVersion.value, // Using same version logic
-          versionType.value
+          targetVersion,
+          versionType.value,
+          selectedRepository.value.tag_prefix // Usar el prefijo del repositorio principal
         )
         
         if (secondaryCommitsResponse.success) {
+          const secondaryCommitsResponse_data = secondaryCommitsResponse.data || {}
+          const secondaryCommitsData = secondaryCommitsResponse_data.commits || secondaryCommitsResponse_data || []
+          console.log(`📋 Secondary repository ${secondaryRepo.name} commits data:`, secondaryCommitsResponse_data)
+          console.log(`📊 Secondary repository ${secondaryRepo.name} commits array: ${Array.isArray(secondaryCommitsData)} - length: ${secondaryCommitsData.length}`)
+          
           const secondaryTemplateData = {
             version: getFinalVersion(),
             date: new Date(),
             type: versionType.value,
             repository: secondaryRepo.name,
-            commits: secondaryCommitsResponse.data.commits || [],
-            fromTag: secondaryCommitsResponse.data.fromTag || 'inicio',
-            toTag: secondaryCommitsResponse.data.toTag || 'HEAD',
-            commitsCount: secondaryCommitsResponse.data.commits?.length || 0,
+            commits: secondaryCommitsData,
+            fromTag: secondaryCommitsResponse_data.fromTag || 'último tag',
+            toTag: 'HEAD',
+            commitsCount: secondaryCommitsData.length,
             baseVersion: currentVersion.value,
             releaseType: versionType.value,
             author: 'Usuario'
@@ -993,11 +1006,18 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
 }
 
 const generateSingleRepositoryPreview = async () => {
-  // Obtener commits específicos para el tipo de release seleccionado
+  console.log(`🔄 Generating single repository preview for ${selectedRepository.value.name}`)
+  console.log(`📋 Current version (last tag): ${currentVersion.value}`)
+  const targetVersion = getFinalVersion()
+  console.log(`🎯 Target version: ${targetVersion}`)
+  console.log(`🔄 Using semantic versioning logic - version type: ${versionType.value}`)
+  
+  // Usar lógica de semantic versioning inteligente
   const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
     selectedRepository.value.path,
-    currentVersion.value,
-    versionType.value
+    targetVersion,
+    versionType.value,
+    selectedRepository.value.tag_prefix
   )
   console.log('Git commits response:', commitsResponse)
   
@@ -1006,15 +1026,20 @@ const generateSingleRepositoryPreview = async () => {
   }
   
   // Preparar datos reales para el template
+  const commitsResponse_data = commitsResponse.data || {}
+  const commitsData = commitsResponse_data.commits || commitsResponse_data || []
+  console.log(`📋 Single repository commits data:`, commitsResponse_data)
+  console.log(`📊 Single repository commits array: ${Array.isArray(commitsData)} - length: ${commitsData.length}`)
+  
   const templateData = {
     version: getFinalVersion(),
     date: new Date(),
     type: versionType.value,
     repository: selectedRepository.value.name,
-    commits: commitsResponse.data.commits || [],
-    fromTag: commitsResponse.data.fromTag || 'inicio',
-    toTag: commitsResponse.data.toTag || 'HEAD',
-    commitsCount: commitsResponse.data.commits?.length || 0,
+    commits: commitsData,
+    fromTag: 'último tag',
+    toTag: 'HEAD',
+    commitsCount: commitsData.length,
     baseVersion: currentVersion.value,
     releaseType: versionType.value,
     author: 'Usuario' // Se puede obtener de Git config si está disponible
@@ -1131,7 +1156,8 @@ const generateRelease = async () => {
       const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
         selectedRepository.value.path,
         currentVersion.value,
-        versionType.value
+        versionType.value,
+        selectedRepository.value.tag_prefix
       )
       
       if (commitsResponse.success && commitsResponse.data?.commits) {
@@ -1294,7 +1320,8 @@ const generateRelease = async () => {
         const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
           selectedRepository.value.path,
           currentVersion.value,
-          versionType.value
+          versionType.value,
+          selectedRepository.value.tag_prefix
         )
         
         console.log('🔍 Commits response from backend:', commitsResponse)
@@ -1540,7 +1567,8 @@ const generateRelease = async () => {
             const recentCommitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
               selectedRepository.value.path,
               currentVersion.value,
-              versionType.value
+              versionType.value,
+              selectedRepository.value.tag_prefix
             )
             if (recentCommitsResponse.success && recentCommitsResponse.data?.commits) {
               commitCount = recentCommitsResponse.data.commits.length
@@ -2105,7 +2133,8 @@ const sendTeamsNotificationManual = async (release) => {
         const commitsResponse = await window.electronAPI.gitGetCommitsForReleaseType(
           repository.path,
           release.version,
-          'patch'
+          'patch',
+          repository.tag_prefix
         )
         
         if (commitsResponse.success && commitsResponse.data?.commits) {

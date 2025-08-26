@@ -26,17 +26,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitPushTags: (repoPath, remote) => ipcRenderer.invoke('git-push-tags', repoPath, remote),
   gitGetRemotes: (repoPath) => ipcRenderer.invoke('git-get-remotes', repoPath),
   gitValidateForRelease: (repoPath) => ipcRenderer.invoke('git-validate-for-release', repoPath),
-  gitGetTags: (repoPath, sortBySemver) =>
-    ipcRenderer.invoke('git-get-tags', repoPath, sortBySemver),
-  gitGetLatestTag: (repoPath) => ipcRenderer.invoke('git-get-latest-tag', repoPath),
+  gitGetTags: (repoPath, sortBySemver, tagPrefix) =>
+    ipcRenderer.invoke('git-get-tags', repoPath, sortBySemver, tagPrefix),
+  gitGetTagsWithDetails: (repoPath, sortBySemver, tagPrefix) =>
+    ipcRenderer.invoke('git-get-tags-with-details', repoPath, sortBySemver, tagPrefix),
+  gitGetCommitsBetweenTags: (repoPath, fromTag, toTag) =>
+    ipcRenderer.invoke('git-get-commits-between-tags', repoPath, fromTag, toTag),
+  gitGetLatestTag: (repoPath, tagPrefix) => ipcRenderer.invoke('git-get-latest-tag', repoPath, tagPrefix),
   gitCommit: (repoPath, message) => ipcRenderer.invoke('git-commit', repoPath, message),
   gitGetCurrentBranch: (repoPath) => ipcRenderer.invoke('git-get-current-branch', repoPath),
   gitIsClean: (repoPath) => ipcRenderer.invoke('git-is-clean', repoPath),
   gitGetCommits: (repoPath, limit) => ipcRenderer.invoke('git-get-commits', repoPath, limit),
-  gitGetCommitsSinceLastTag: (repoPath) =>
-    ipcRenderer.invoke('git-get-commits-since-last-tag', repoPath),
-  gitGetCommitsForReleaseType: (repoPath, currentVersion, releaseType) =>
-    ipcRenderer.invoke('git-get-commits-for-release-type', repoPath, currentVersion, releaseType),
+  gitGetCommitsSinceLastTag: (repoPath, tagPrefix) =>
+    ipcRenderer.invoke('git-get-commits-since-last-tag', repoPath, tagPrefix),
+  gitGetCommitsForReleaseType: (repoPath, currentVersion, releaseType, tagPrefix) =>
+    ipcRenderer.invoke('git-get-commits-for-release-type', repoPath, currentVersion, releaseType, tagPrefix),
   gitExtractCollaborators: (commits) => ipcRenderer.invoke('git-extract-collaborators', commits),
 
   // Template engine
@@ -83,6 +87,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     mainRepoId,
     mainRepoName,
     mainRepoPath,
+    mainRepoTagPrefix,
     secondaryRepositories,
     targetVersion
   ) =>
@@ -91,6 +96,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       mainRepoId,
       mainRepoName,
       mainRepoPath,
+      mainRepoTagPrefix,
       secondaryRepositories,
       targetVersion
     ),
@@ -134,6 +140,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ),
   jiraAddIssuesFixVersion: (issueKeys, versionId) =>
     ipcRenderer.invoke('jira-add-issues-fix-version', issueKeys, versionId),
+
+  // File operations
+  showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
 
   // Debug
   dbGetTableStructure: () => ipcRenderer.invoke('db-get-table-structure'),

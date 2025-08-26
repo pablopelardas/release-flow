@@ -67,6 +67,20 @@
               Releases
             </router-link>
           </li>
+          <li>
+            <router-link
+              :to="{ path: '/changelog' }"
+              :class="[
+                'flex items-center px-4 py-2 rounded-lg transition-colors',
+                $route.path === '/changelog'
+                  ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900'
+              ]"
+            >
+              <i class="pi pi-history mr-3"></i>
+              Changelog
+            </router-link>
+          </li>
           <li v-if="settingsStore.isCodebaseConfigured">
             <router-link
               :to="{ path: '/activity' }"
@@ -150,6 +164,7 @@ const _pageTitle = computed(() => {
     '/repositories': 'Gestión de Repositorios',
     '/templates': 'Editor de Templates',
     '/releases': 'Generación de Releases',
+    '/changelog': 'Changelog Completo',
   }
   return titles[route.path] || 'ReleaseFlow'
 })

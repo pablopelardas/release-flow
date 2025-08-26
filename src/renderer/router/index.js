@@ -37,6 +37,11 @@ const routes = [
         name: 'Activity',
         component: () => import('../views/Activity.vue'),
       },
+      {
+        path: '/changelog',
+        name: 'Changelog',
+        component: () => import('../views/Changelog.vue'),
+      },
     ],
   },
 ]

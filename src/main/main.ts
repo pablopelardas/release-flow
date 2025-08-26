@@ -267,10 +267,10 @@ ipcMain.handle('git-create-tag', async (_event, repoPath, tagName, message) => {
   }
 })
 
-ipcMain.handle('git-get-tags', async (_event, repoPath, sortBySemver = true) => {
+ipcMain.handle('git-get-tags', async (_event, repoPath, sortBySemver = true, tagPrefix) => {
   try {
     if (!gitService) throw new Error('GitService no inicializado')
-    const result = await gitService.getTags(repoPath, sortBySemver)
+    const result = await gitService.getTags(repoPath, sortBySemver, tagPrefix)
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-get-tags:', error)
@@ -278,10 +278,32 @@ ipcMain.handle('git-get-tags', async (_event, repoPath, sortBySemver = true) => 
   }
 })
 
-ipcMain.handle('git-get-latest-tag', async (_event, repoPath) => {
+ipcMain.handle('git-get-tags-with-details', async (_event, repoPath, sortBySemver = true, tagPrefix) => {
   try {
     if (!gitService) throw new Error('GitService no inicializado')
-    const result = await gitService.getLatestTag(repoPath)
+    const result = await gitService.getTagsWithDetails(repoPath, sortBySemver, tagPrefix)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en git-get-tags-with-details:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('git-get-commits-between-tags', async (_event, repoPath, fromTag, toTag) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getCommitsBetweenTags(repoPath, fromTag, toTag)
+    return { success: true, data: { commits: result } }
+  } catch (error) {
+    console.error('Error en git-get-commits-between-tags:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('git-get-latest-tag', async (_event, repoPath, tagPrefix) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getLatestTag(repoPath, tagPrefix)
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en git-get-latest-tag:', error)
@@ -333,10 +355,10 @@ ipcMain.handle('git-get-commits', async (_event, repoPath, limit = 50) => {
   }
 })
 
-ipcMain.handle('git-get-commits-since-last-tag', async (_event, repoPath) => {
+ipcMain.handle('git-get-commits-since-last-tag', async (_event, repoPath, tagPrefix) => {
   try {
     if (!gitService) throw new Error('GitService no inicializado')
-    const result = await gitService.getCommitsSinceLastTag(repoPath)
+    const result = await gitService.getCommitsSinceLastTag(repoPath, tagPrefix)
     return result
   } catch (error) {
     console.error('Error en git-get-commits-since-last-tag:', error)
@@ -346,13 +368,14 @@ ipcMain.handle('git-get-commits-since-last-tag', async (_event, repoPath) => {
 
 ipcMain.handle(
   'git-get-commits-for-release-type',
-  async (_event, repoPath, currentVersion, releaseType) => {
+  async (_event, repoPath, currentVersion, releaseType, tagPrefix) => {
     try {
       if (!gitService) throw new Error('GitService no inicializado')
       const result = await gitService.getCommitsForReleaseType(
         repoPath,
         currentVersion,
-        releaseType
+        releaseType,
+        tagPrefix
       )
       return result
     } catch (error) {
@@ -702,13 +725,14 @@ ipcMain.handle('release-suggest-version', async (_event, repoPath, currentVersio
 // Manejadores IPC para changelog unificado
 ipcMain.handle(
   'release-collect-multi-repository-data',
-  async (_event, mainRepoId, mainRepoName, mainRepoPath, secondaryRepositories, targetVersion) => {
+  async (_event, mainRepoId, mainRepoName, mainRepoPath, mainRepoTagPrefix, secondaryRepositories, targetVersion) => {
     try {
       if (!releaseService) throw new Error('ReleaseService no inicializado')
       const result = await releaseService.collectMultiRepositoryData(
         mainRepoId,
         mainRepoName,
         mainRepoPath,
+        mainRepoTagPrefix,
         secondaryRepositories,
         targetVersion
       )
@@ -930,6 +954,18 @@ ipcMain.handle('jira-add-issues-fix-version', async (_event, issueKeys, versionI
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })
+
+// File system operations
+ipcMain.handle('show-save-dialog', async (_event, options) => {
+  try {
+    const result = await dialog.showSaveDialog(options)
+    return result
+  } catch (error) {
+    console.error('Error en show-save-dialog:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
 
 // Debug handlers
 ipcMain.handle('db-get-table-structure', async (_event) => {
