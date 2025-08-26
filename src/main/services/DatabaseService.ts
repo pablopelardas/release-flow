@@ -308,8 +308,7 @@ export class DatabaseService {
           description: 'Template formal para release notes',
           category: 'predefined',
           content: `# Release Notes v{{ version }}
-
-**Fecha de Lanzamiento:** {{ date | date: "%d de %B de %Y" }}
+**Fecha de Lanzamiento:** {{ date | formatDate: "%d de %B de %Y" }}
 **Tipo de Release:** {{ type }}
 
 {% assign has_feat = false %}
@@ -328,41 +327,24 @@ export class DatabaseService {
 
 {% if has_feat %}
 ## 🚀 Nuevas Características
-{% for commit in commits %}{% if commit.type == "feat" %}
-- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}{% endfor %}
-
-{% endif %}
+{% for commit in commits %}{% if commit.type == "feat" %}- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
+{% endif %}{% endfor %}{% endif %}
 {% if has_fix %}
 ## 🐛 Correcciones
-{% for commit in commits %}{% if commit.type == "fix" %}
-- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}{% endfor %}
-
-{% endif %}
+{% for commit in commits %}{% if commit.type == "fix" %}- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
+{% endif %}{% endfor %}{% endif %}
 {% if has_docs %}
 ## 📝 Documentación
-{% for commit in commits %}{% if commit.type == "docs" %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-{% endif %}
+{% for commit in commits %}{% if commit.type == "docs" %}- {{ commit.subject }}
+{% endif %}{% endfor %}{% endif %}
 {% if has_chore %}
 ## 🔧 Mantenimiento
-{% for commit in commits %}{% if commit.type == "chore" %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-{% endif %}
+{% for commit in commits %}{% if commit.type == "chore" %}- {{ commit.subject }}
+{% endif %}{% endfor %}{% endif %}
 {% if has_other %}
 ## 📝 Otros Cambios
-{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}
-- {{ commit.subject }}
-{% endunless %}{% endfor %}
-
-{% endif %}
----
-*Generado automáticamente por ReleaseFlow*`,
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}- {{ commit.subject }}
+{% endunless %}{% endfor %}{% endif %}`,
         },
         {
           name: 'Changelog Simple',

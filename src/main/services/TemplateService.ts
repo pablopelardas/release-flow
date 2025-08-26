@@ -441,8 +441,7 @@ npm install {{ repository }}@{{ version }}
 \`\`\`
 {% endif %}
 
----
-Generado automáticamente por ReleaseFlow`,
+`,
         variables: ['repository', 'version', 'date', 'author', 'summary', 'commits'],
         category: 'release',
       },

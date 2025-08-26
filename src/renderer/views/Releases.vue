@@ -880,8 +880,6 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
     
     // Start unified changelog with main repository
     let unifiedChangelog = `# ${selectedRepository.value.name} - Release ${getFinalVersion()}\n\n`
-    unifiedChangelog += `**Fecha:** ${new Date().toLocaleDateString()}\n\n`
-    unifiedChangelog += `---\n\n`
     unifiedChangelog += `## 📁 Repositorio Principal: ${selectedRepository.value.name}\n\n`
     unifiedChangelog += cleanMainChangelog + '\n\n'
     
@@ -950,7 +948,7 @@ const generateUnifiedChangelogWithTemplate = async (secondaryRepositories) => {
     secondaryRepositories.forEach(repo => {
       unifiedChangelog += `- **Repositorio Secundario:** ${repo.name}\n`
     })
-    unifiedChangelog += `\n\n---\n*Generado automáticamente por ReleaseFlow*`
+    unifiedChangelog += ``
     
     console.log('✅ Unified changelog generated successfully')
     return unifiedChangelog
@@ -1006,15 +1004,20 @@ const cleanAutomaticGenerationText = (text) => {
   return text
     // Remove "Generado automáticamente por ReleaseFlow" at the end
     .replace(/---\s*\n\s*Generado automáticamente por ReleaseFlow\s*$/gm, '')
+    .replace(/---\s*\n\s*\*Generado automáticamente por ReleaseFlow\*\s*$/gm, '')
     // Remove "Generated automatically by ReleaseFlow" at the end
     .replace(/---\s*\n\s*\*Generated automatically by ReleaseFlow\*\s*$/gm, '')
     // Remove standalone "Generated automatically by ReleaseFlow" lines
     .replace(/^\s*Generado automáticamente por ReleaseFlow\s*$/gm, '')
     .replace(/^\s*\*Generated automatically by ReleaseFlow\*\s*$/gm, '')
+    // Clean up excessive empty lines after list items
+    .replace(/(\n- [^\n]+)\n\n+/g, '$1\n')
     // Clean up multiple empty lines
     .replace(/\n\n\n+/g, '\n\n')
     // Remove trailing separator if it's at the end
     .replace(/---\s*$/gm, '')
+    // Clean trailing whitespace
+    .replace(/[ \t]+$/gm, '')
     .trim()
 }
 
