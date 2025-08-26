@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitValidateForRelease: (repoPath) => ipcRenderer.invoke('git-validate-for-release', repoPath),
   gitGetTags: (repoPath, sortBySemver) =>
     ipcRenderer.invoke('git-get-tags', repoPath, sortBySemver),
+  gitGetLatestTag: (repoPath) => ipcRenderer.invoke('git-get-latest-tag', repoPath),
   gitCommit: (repoPath, message) => ipcRenderer.invoke('git-commit', repoPath, message),
   gitGetCurrentBranch: (repoPath) => ipcRenderer.invoke('git-get-current-branch', repoPath),
   gitIsClean: (repoPath) => ipcRenderer.invoke('git-is-clean', repoPath),

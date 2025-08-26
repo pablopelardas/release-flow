@@ -274,6 +274,17 @@ ipcMain.handle('git-get-tags', async (_event, repoPath, sortBySemver = true) => 
   }
 })
 
+ipcMain.handle('git-get-latest-tag', async (_event, repoPath) => {
+  try {
+    if (!gitService) throw new Error('GitService no inicializado')
+    const result = await gitService.getLatestTag(repoPath)
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error en git-get-latest-tag:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
 ipcMain.handle('git-commit', async (_event, repoPath, message) => {
   try {
     if (!gitService) throw new Error('GitService no inicializado')

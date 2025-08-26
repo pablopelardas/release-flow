@@ -183,6 +183,34 @@ export class GitService {
   }
 
   /**
+   * Obtiene el último tag del repositorio (más reciente por fecha)
+   */
+  async getLatestTag(repoPath: string): Promise<string | null> {
+    try {
+      console.log(`[GitService] getLatestTag called for path: ${repoPath}`)
+      const git = this.getGitInstance(repoPath)
+      
+      // Obtener todos los tags con sus fechas usando git for-each-ref
+      // Esto nos da los tags ordenados por fecha de commit
+      const result = await git.raw([
+        'for-each-ref',
+        '--sort=-committerdate',
+        '--format=%(refname:short)',
+        'refs/tags',
+        '--count=1'
+      ])
+      
+      const latestTag = result.trim()
+      console.log(`[GitService] Latest tag by date: ${latestTag || 'none'}`)
+      
+      return latestTag || null
+    } catch (error) {
+      console.error(`[GitService] Error getting latest tag:`, error)
+      return null
+    }
+  }
+
+  /**
    * Obtiene lista de tags del repositorio
    */
   async getTags(repoPath: string, sortBySemver = false): Promise<string[]> {

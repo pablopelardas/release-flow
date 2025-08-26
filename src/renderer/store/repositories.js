@@ -161,13 +161,9 @@ export const useRepositoriesStore = defineStore('repositories', {
         const statusResponse = await window.electronAPI.gitStatus(repo.path)
         const branchResponse = await window.electronAPI.gitGetCurrentBranch(repo.path)
         
-        // Get the last tag
-        const tagsResponse = await window.electronAPI.gitGetTags(repo.path)
-        let lastTag = null
-        if (tagsResponse.success && tagsResponse.data && tagsResponse.data.length > 0) {
-          // Tags are returned in chronological order, get the last one
-          lastTag = tagsResponse.data[tagsResponse.data.length - 1]
-        }
+        // Get the latest tag using the new method
+        const latestTagResponse = await window.electronAPI.gitGetLatestTag(repo.path)
+        const lastTag = latestTagResponse.success ? latestTagResponse.data : null
 
         const updates = {
           current_branch: branchResponse.success ? branchResponse.data : repo.current_branch,
