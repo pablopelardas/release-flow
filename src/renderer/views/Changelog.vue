@@ -353,7 +353,19 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import { useRepositoriesStore, useReleasesStore } from '../store'
 
-const toast = useToast()
+// Toast - con manejo de error si no está disponible
+let toast = null
+try {
+  toast = useToast()
+} catch (error) {
+  console.warn('Toast service not available, using console for notifications')
+  toast = {
+    add: (config) => {
+      console.log(`[Toast ${config.severity}]:`, config.summary, config.detail)
+    }
+  }
+}
+
 const repositoriesStore = useRepositoriesStore()
 const releasesStore = useReleasesStore()
 

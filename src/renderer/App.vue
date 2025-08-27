@@ -1,9 +1,14 @@
 <template>
-  <router-view />
+  <div>
+    <router-view />
+    <!-- Toast Global - Debe estar en el nivel más alto de la app -->
+    <Toast position="top-right" />
+  </div>
 </template>
 
 <script setup>
 import { RouterView } from 'vue-router'
+import Toast from 'primevue/toast'
 </script>
 
 <style>

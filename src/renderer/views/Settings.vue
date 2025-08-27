@@ -100,7 +100,7 @@
           <div class="flex items-center space-x-3">
             <button 
               @click="testConnection"
-              :disabled="!username || !apiKey || testing"
+              :disabled="testing"
               class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
             >
               <i :class="testing ? 'pi pi-spin pi-spinner' : 'pi pi-check-circle'"></i>
@@ -175,7 +175,7 @@
           <div class="flex items-center space-x-4">
             <button 
               @click="testTeamsConnection"
-              :disabled="testingTeamsConnection || !teamsWebhookUrl"
+              :disabled="testingTeamsConnection"
               class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
             >
               <i :class="testingTeamsConnection ? 'pi pi-spin pi-spinner' : 'pi pi-send'"></i>
@@ -303,7 +303,7 @@
           <div class="flex items-center space-x-3">
             <button 
               @click="testJiraConnection"
-              :disabled="!jiraUsername || !jiraApiToken || testingJira"
+              :disabled="testingJira"
               class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
             >
               <i :class="testingJira ? 'pi pi-spin pi-spinner' : 'pi pi-check-circle'"></i>
@@ -347,11 +347,141 @@
       </div>
     </div>
 
+    <!-- Database Information Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center">
+          <i class="pi pi-database text-indigo-500 mr-2"></i>
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Información de Base de Datos</h2>
+        </div>
+        <button 
+          @click="loadDatabaseInfo"
+          :disabled="loadingDbInfo"
+          class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm"
+        >
+          <i :class="loadingDbInfo ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i>
+          <span>Actualizar</span>
+        </button>
+      </div>
+      
+      <div v-if="databaseInfo" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Ubicación de la Base de Datos
+              </label>
+              <div class="flex items-center space-x-2">
+                <input 
+                  :value="databaseInfo.databasePath" 
+                  readonly
+                  class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono"
+                />
+                <button 
+                  @click="copyToClipboard(databaseInfo.databasePath)"
+                  class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  title="Copiar ruta"
+                >
+                  <i class="pi pi-copy"></i>
+                </button>
+                <button 
+                  @click="showInExplorer(databaseInfo.databasePath)"
+                  class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  title="Mostrar en explorador"
+                >
+                  <i class="pi pi-folder-open"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {{ databaseInfo.isDevelopment ? 'Modo desarrollo' : 'Modo producción' }}
+              </p>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Directorio de Datos de Usuario
+              </label>
+              <div class="flex items-center space-x-2">
+                <input 
+                  :value="databaseInfo.userDataPath" 
+                  readonly
+                  class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono"
+                />
+                <button 
+                  @click="copyToClipboard(databaseInfo.userDataPath)"
+                  class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  title="Copiar ruta"
+                >
+                  <i class="pi pi-copy"></i>
+                </button>
+                <button 
+                  @click="showInExplorer(databaseInfo.userDataPath)"
+                  class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  title="Mostrar en explorador"
+                >
+                  <i class="pi pi-folder-open"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Carpeta donde Electron almacena todos los datos de la aplicación
+              </p>
+            </div>
+          </div>
+          
+          <div class="space-y-3">
+            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+              <h4 class="font-medium text-gray-900 dark:text-white mb-2">Estado de la Base de Datos</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600 dark:text-gray-400">Estado:</span>
+                  <span :class="databaseInfo.databaseExists ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    <i :class="databaseInfo.databaseExists ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                    {{ databaseInfo.databaseExists ? 'Existe' : 'No encontrada' }}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600 dark:text-gray-400">Tamaño:</span>
+                  <span class="text-gray-900 dark:text-white font-mono">{{ formatBytes(databaseInfo.databaseSize) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600 dark:text-gray-400">Modo:</span>
+                  <span class="text-gray-900 dark:text-white">{{ databaseInfo.isDevelopment ? 'Desarrollo' : 'Producción' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+            <i class="pi pi-info-circle mr-2"></i>
+            Compartir Base de Datos entre Desarrolladores
+          </h4>
+          <div class="text-blue-800 dark:text-blue-200 text-sm space-y-2">
+            <p>
+              <strong>En desarrollo:</strong> La base de datos se guarda en el directorio del proyecto como <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">releaseflow-dev.db</code>
+            </p>
+            <p>
+              <strong>En producción:</strong> Se guarda en el directorio de datos de usuario del sistema operativo
+            </p>
+            <p>
+              <strong>Para compartir:</strong> Puedes copiar el archivo <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">.db</code> entre desarrolladores para mantener los mismos repositorios y configuraciones.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div v-else-if="loadingDbInfo" class="flex items-center justify-center py-8">
+        <i class="pi pi-spin pi-spinner text-2xl text-gray-400"></i>
+        <span class="ml-2 text-gray-600 dark:text-gray-400">Cargando información...</span>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 
 // Reactive data
 const codebaseEnabled = ref(false)
@@ -382,6 +512,10 @@ const showJiraApiToken = ref(false)
 const testingJira = ref(false)
 const jiraConnectionStatus = ref(null)
 const jiraConnectionError = ref('')
+
+// Database info
+const databaseInfo = ref(null)
+const loadingDbInfo = ref(false)
 
 
 // Load settings
@@ -454,7 +588,10 @@ const loadSettings = async () => {
 
 // Test CodebaseHQ connection
 const testConnection = async () => {
-  if (!username.value || !apiKey.value) return
+  if (!username.value || !apiKey.value) {
+    alert('⚠️ Por favor completa Username y API Key antes de probar la conexión')
+    return
+  }
   
   testing.value = true
   connectionStatus.value = null
@@ -487,7 +624,10 @@ const testConnection = async () => {
 
 // Test Teams connection
 const testTeamsConnection = async () => {
-  if (!teamsWebhookUrl.value) return
+  if (!teamsWebhookUrl.value) {
+    alert('⚠️ Por favor completa la URL del webhook antes de probar la conexión')
+    return
+  }
   
   testingTeamsConnection.value = true
   teamsConnectionStatus.value = null
@@ -518,7 +658,10 @@ const testTeamsConnection = async () => {
 
 // Test JIRA connection
 const testJiraConnection = async () => {
-  if (!jiraUsername.value || !jiraApiToken.value) return
+  if (!jiraUsername.value || !jiraApiToken.value) {
+    alert('⚠️ Por favor completa Username y API Token antes de probar la conexión')
+    return
+  }
   
   testingJira.value = true
   jiraConnectionStatus.value = null
@@ -550,7 +693,19 @@ const testJiraConnection = async () => {
 
 // Save settings
 const saveSettings = async () => {
+  if (!window.electronAPI || !window.electronAPI.dbSetConfig) {
+    alert('❌ Error: API de Electron no disponible')
+    return
+  }
+
   saving.value = true
+  
+  // Timeout de seguridad - forzar desbloqueo después de 10 segundos
+  const emergencyTimeout = setTimeout(async () => {
+    saving.value = false
+    await nextTick()
+    alert('⚠️ Timeout de guardado - Formulario desbloqueado automáticamente')
+  }, 10000)
   
   try {
     const settings = [
@@ -569,28 +724,116 @@ const saveSettings = async () => {
     ]
     
     for (const setting of settings) {
-      const response = await window.electronAPI.dbSetConfig(setting.key, setting.value)
-      if (!response.success) {
-        throw new Error(`Error guardando ${setting.key}: ${response.error}`)
+      const response = await Promise.race([
+        window.electronAPI.dbSetConfig(setting.key, setting.value),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Timeout guardando ${setting.key}`)), 3000)
+        )
+      ])
+      
+      if (!response || !response.success) {
+        throw new Error(`Error guardando ${setting.key}: ${response?.error || 'Sin respuesta'}`)
       }
     }
-    
-    alert('✅ Configuración guardada exitosamente')
     
     // Reset connection status
     connectionStatus.value = null
     connectionError.value = ''
     
+    // Forzar actualización de UI antes del alert
+    await nextTick()
+    
+    // HACK: Simular pérdida y recuperación de foco para forzar re-render
+    window.blur()
+    setTimeout(() => {
+      window.focus()
+    }, 50)
+    
+    alert('✅ Configuración guardada exitosamente')
+    
   } catch (error) {
     console.error('Error saving settings:', error)
     alert(`❌ Error guardando configuración: ${error.message}`)
+    
   } finally {
+    // Cancelar timeout de emergencia
+    clearTimeout(emergencyTimeout)
+    
+    // FORZAR desbloqueo
     saving.value = false
+    
+    // Forzar re-render de Vue para actualizar UI inmediatamente
+    await nextTick()
+    
+    // HACK FINAL: Simular ciclo focus para forzar actualización
+    setTimeout(() => {
+      window.blur()
+      setTimeout(() => {
+        window.focus()
+      }, 30)
+    }, 50)
+    
+    // Verificación adicional
+    setTimeout(async () => {
+      if (saving.value) {
+        saving.value = false
+        await nextTick()
+      }
+    }, 200)
   }
 }
 
+// Load database info
+const loadDatabaseInfo = async () => {
+  loadingDbInfo.value = true
+  try {
+    const response = await window.electronAPI.getDatabaseInfo()
+    if (response.success) {
+      databaseInfo.value = response.data
+    } else {
+      console.error('Error loading database info:', response.error)
+    }
+  } catch (error) {
+    console.error('Error loading database info:', error)
+  } finally {
+    loadingDbInfo.value = false
+  }
+}
+
+// Copy to clipboard
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    alert('✅ Ruta copiada al portapapeles')
+  } catch (error) {
+    console.error('Error copying to clipboard:', error)
+    alert('❌ Error copiando al portapapeles')
+  }
+}
+
+// Show in explorer
+const showInExplorer = async (path) => {
+  try {
+    await window.electronAPI.showInExplorer(path)
+  } catch (error) {
+    console.error('Error showing in explorer:', error)
+    alert('❌ Error abriendo explorador')
+  }
+}
+
+// Format bytes
+const formatBytes = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+
 onMounted(() => {
   loadSettings()
+  loadDatabaseInfo()
 })
 </script>
 

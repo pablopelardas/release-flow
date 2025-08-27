@@ -16,6 +16,7 @@ export default defineConfig({
     port: 5173,
     hmr: true,
   },
+  base: './', // Usar rutas relativas para que funcione con file://
   build: {
     outDir: 'dist',
     emptyOutDir: true,
