@@ -1,7 +1,12 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import * as path from 'node:path'
+import * as fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+// @ts-ignore - electron-squirrel-startup no tiene tipos TypeScript
+import squirrelStartup from 'electron-squirrel-startup'
+// @ts-ignore - usar autoUpdater de electron para Squirrel
+import { autoUpdater } from 'electron'
 import { CodebaseHQService } from './services/CodebaseHQService.js'
 import { DatabaseService } from './services/DatabaseService.js'
 // Importar servicios TypeScript
@@ -11,12 +16,135 @@ import { ReleaseService } from './services/ReleaseService.js'
 import { TeamsService } from './services/TeamsService.js'
 import { TemplateService } from './services/TemplateService.js'
 
+// Manejar eventos de instalación/actualización de Squirrel
+// Esto debe ocurrir antes de cualquier otra lógica
+if (squirrelStartup) {
+  console.log('Squirrel event handled, exiting...')
+  app.quit()
+}
+
+// Función adicional para manejar eventos específicos de Squirrel
+function handleSquirrelEvent() {
+  if (process.argv.length === 1) {
+    return false
+  }
+
+  const squirrelEvent = process.argv[1]
+  console.log('Squirrel event:', squirrelEvent)
+
+  switch (squirrelEvent) {
+    case '--squirrel-install':
+    case '--squirrel-updated':
+      // Instalar accesos directos, etc.
+      // Salir inmediatamente después
+      setTimeout(app.quit, 1000)
+      return true
+
+    case '--squirrel-uninstall':
+      // Limpiar archivos de configuración, etc.
+      setTimeout(app.quit, 1000)
+      return true
+
+    case '--squirrel-obsolete':
+      // Se está reemplazando por una versión más nueva
+      app.quit()
+      return true
+
+    default:
+      return false
+  }
+}
+
+// Verificar eventos de Squirrel antes de continuar
+if (handleSquirrelEvent()) {
+  // No continuar con la inicialización normal
+}
+
 // Para ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Configuración de desarrollo
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+const isViteMode = process.env.NODE_ENV === 'development' // Solo para desarrollo con Vite server
+const isDebugMode = process.env.ELECTRON_DEBUG === 'true'
+
+// Configuración del Auto-Updater para Squirrel.Windows
+if (!isDev && process.platform === 'win32') {
+  try {
+    // Configurar URL del servidor de actualizaciones
+    const feedURL = 'http://localhost:3001/releases/'
+    autoUpdater.setFeedURL({
+      url: feedURL,
+      headers: {
+        'User-Agent': 'ReleaseFlow/1.0.0'
+      }
+    })
+    
+    console.log('Auto-updater configurado con URL:', feedURL)
+    
+    // Configurar eventos del updater
+    autoUpdater.on('checking-for-update', () => {
+      console.log('[AutoUpdater] Verificando actualizaciones...')
+    })
+    
+    autoUpdater.on('update-available', () => {
+      console.log('[AutoUpdater] ¡Actualización disponible!')
+    })
+    
+    autoUpdater.on('update-not-available', () => {
+      console.log('[AutoUpdater] No hay actualizaciones disponibles')
+    })
+    
+    autoUpdater.on('error', (err) => {
+      console.error('[AutoUpdater] Error:', err)
+    })
+    
+    autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+      console.log('[AutoUpdater] Actualización descargada:', releaseName)
+      
+      // Notificar al renderer
+      if (mainWindow) {
+        mainWindow.webContents.send('update-downloaded', {
+          version: releaseName
+        })
+        
+        // Preguntar al usuario si quiere reiniciar
+        const dialogOpts = {
+          type: 'info' as const,
+          buttons: ['Reiniciar', 'Más tarde'],
+          title: 'Actualización disponible',
+          message: releaseName ? `Una nueva versión ${releaseName} ha sido descargada.` : 'Una nueva versión ha sido descargada.',
+          detail: '¿Desea reiniciar la aplicación para aplicar la actualización?'
+        }
+        
+        dialog.showMessageBox(dialogOpts).then((returnValue) => {
+          if (returnValue.response === 0) autoUpdater.quitAndInstall()
+        })
+      }
+    })
+  } catch (error) {
+    console.error('[AutoUpdater] Error configurando:', error)
+  }
+}
+
+// Función para obtener la ruta de la base de datos
+function getDatabasePath(): string {
+  if (isDev) {
+    // En desarrollo: usar archivo en el directorio del proyecto
+    return path.join(process.cwd(), 'releaseflow-dev.db')
+  }
+
+  // En producción: usar directorio de datos de usuario
+  const userDataPath = app.getPath('userData')
+  
+  // Crear directorio si no existe
+  if (!fs.existsSync(userDataPath)) {
+    fs.mkdirSync(userDataPath, { recursive: true })
+  }
+
+  return path.join(userDataPath, 'releaseflow.db')
+}
 
 // Referencias globales de ventanas
 let mainWindow: BrowserWindow | null = null
@@ -43,20 +171,22 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.js'),
-      // Opciones para WSL
-      webSecurity: false,
-      allowRunningInsecureContent: true,
     },
     titleBarStyle: 'default',
     show: false, // No mostrar hasta que esté listo
   })
 
   // Cargar la aplicación
-  if (isDev) {
+  if (isViteMode) {
+    // Solo en desarrollo con Vite server
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools()
   } else {
+    // En producción o modo testing (npm run electron)
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
+    if (isDebugMode) {
+      mainWindow.webContents.openDevTools()
+    }
   }
 
   // Mostrar ventana cuando esté lista
@@ -91,6 +221,15 @@ app.whenReady().then(async () => {
   }
 
   createWindow()
+
+  // Verificar actualizaciones después de crear la ventana
+  if (!isDev) {
+    // Esperar un poco antes de verificar actualizaciones
+    setTimeout(() => {
+      console.log('[AutoUpdater] Verificando actualizaciones automáticamente...')
+      autoUpdater.checkForUpdates()
+    }, 3000)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -171,6 +310,33 @@ ipcMain.handle('write-file', async (_event, filePath, content) => {
   }
 })
 
+// Handler para obtener información de la base de datos
+ipcMain.handle('database-get-info', async (event) => {
+  try {
+    if (!databaseService) throw new Error('DatabaseService no inicializado')
+    
+    const dbPath = getDatabasePath()
+    const userDataPath = app.getPath('userData')
+    
+    return {
+      success: true,
+      data: {
+        databasePath: dbPath,
+        userDataPath: userDataPath,
+        isDevelopment: isDev,
+        databaseExists: fs.existsSync(dbPath),
+        databaseSize: fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0
+      }
+    }
+  } catch (error) {
+    console.error('Error al obtener info de base de datos:', error)
+    return { 
+      success: false, 
+      error: `Error: ${(error as Error).message}` 
+    }
+  }
+})
+
 // Handler para abrir carpeta en explorador
 ipcMain.handle('show-in-explorer', async (_event, folderPath) => {
   try {
@@ -200,8 +366,9 @@ async function initializeServices() {
     gitService = new GitService()
     templateService = new TemplateService()
 
-    // Inicializar base de datos - usar archivo persistente también en desarrollo
-    const dbPath = isDev ? 'releaseflow-dev.db' : path.join(__dirname, '../../data/releaseflow.db')
+    // Inicializar base de datos con ruta correcta según el entorno
+    const dbPath = getDatabasePath()
+    console.log(`[DatabaseService] Usando base de datos en: ${dbPath}`)
     databaseService = new DatabaseService(dbPath)
 
     // Inicializar la base de datos
@@ -975,6 +1142,44 @@ ipcMain.handle('db-get-table-structure', async (_event) => {
     return { success: true, data: result }
   } catch (error) {
     console.error('Error en db-get-table-structure:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+// Auto-updater handlers
+ipcMain.handle('app-check-for-updates', async () => {
+  if (isDev) {
+    return { success: false, error: 'Actualizaciones no disponibles en desarrollo' }
+  }
+  
+  try {
+    const result = await autoUpdater.checkForUpdates()
+    return { success: true, data: result }
+  } catch (error) {
+    console.error('Error checking for updates:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('app-restart-and-install-update', async () => {
+  if (isDev) {
+    return { success: false, error: 'Actualizaciones no disponibles en desarrollo' }
+  }
+  
+  try {
+    autoUpdater.quitAndInstall()
+    return { success: true }
+  } catch (error) {
+    console.error('Error installing update:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
+  }
+})
+
+ipcMain.handle('app-get-version', async () => {
+  try {
+    return { success: true, data: { version: app.getVersion() } }
+  } catch (error) {
+    console.error('Error getting app version:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })

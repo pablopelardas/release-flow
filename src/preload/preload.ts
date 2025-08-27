@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Sistema
   showInExplorer: (path) => ipcRenderer.invoke('show-in-explorer', path),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  
+  // Base de datos
+  getDatabaseInfo: () => ipcRenderer.invoke('database-get-info'),
 
   // Operaciones Git
   gitStatus: (repoPath) => ipcRenderer.invoke('git-status', repoPath),
@@ -147,8 +150,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Debug
   dbGetTableStructure: () => ipcRenderer.invoke('db-get-table-structure'),
 
+  // Auto-updater
+  appCheckForUpdates: () => ipcRenderer.invoke('app-check-for-updates'),
+  appRestartAndInstallUpdate: () => ipcRenderer.invoke('app-restart-and-install-update'),
+  appGetVersion: () => ipcRenderer.invoke('app-get-version'),
+
   // Eventos del sistema
   onAppUpdate: (callback) => ipcRenderer.on('app-update-available', callback),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
 })
 

@@ -1,7 +1,20 @@
 <template>
   <div class="p-6">
+    <!-- Banner de Versión -->
+    <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg mb-6 shadow-lg">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold">¡Bienvenido a ReleaseFlow! ✨</h1>
+          <p class="text-sm opacity-90 mt-1">Versión {{ appVersion }} - Sistema de gestión de releases automatizado 🔄 ¡ACTUALIZADO!</p>
+        </div>
+        <div class="text-4xl">
+          🚀
+        </div>
+      </div>
+    </div>
+    
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-      ReleaseFlow Dashboard
+      Dashboard Principal
     </h1>
     
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -121,6 +134,7 @@ export default {
 
     const recentActivities = ref([])
     const activitiesLoading = ref(false)
+    const appVersion = ref('1.1.0')
     let refreshInterval = null
 
     // Parse XML activity response (copied from Activity.vue)
@@ -245,6 +259,14 @@ export default {
         await appStore.initializeApp()
       }
 
+      // Obtener versión de la aplicación
+      if (window.electronAPI && window.electronAPI.appGetVersion) {
+        const versionResponse = await window.electronAPI.appGetVersion()
+        if (versionResponse.success) {
+          appVersion.value = versionResponse.data.version
+        }
+      }
+
       // Load settings to check CodebaseHQ configuration
       await settingsStore.loadSettings()
       
@@ -284,6 +306,9 @@ export default {
       recentActivities,
       activitiesLoading,
       formatDate,
+      
+      // Version
+      appVersion,
     }
   },
 }

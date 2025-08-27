@@ -125,6 +125,37 @@
           </div>
           
           <div class="flex items-center space-x-4">
+            <!-- Version Badge -->
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-500 dark:text-gray-400">v{{ appVersion }}</span>
+              
+              <!-- Indicador de verificación -->
+              <span v-if="checkingForUpdates" class="text-xs text-blue-500 flex items-center">
+                <i class="pi pi-spin pi-spinner mr-1"></i>
+                Verificando...
+              </span>
+              
+              <!-- Botón de actualización -->
+              <button
+                v-if="updateAvailable"
+                @click="installUpdate"
+                class="text-xs bg-green-500 text-white px-2 py-1 rounded-full hover:bg-green-600 transition-colors animate-pulse"
+              >
+                <i class="pi pi-download mr-1"></i>
+                Actualizar a v{{ newVersion }}
+              </button>
+              
+              <!-- Botón para verificar manualmente -->
+              <button
+                v-if="!updateAvailable && !checkingForUpdates"
+                @click="checkForUpdates"
+                title="Verificar actualizaciones"
+                class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <i class="pi pi-refresh"></i>
+              </button>
+            </div>
+            
             <!-- Theme Toggle -->
             <button
               @click="_toggleTheme"
@@ -142,21 +173,21 @@
         <router-view />
       </div>
     </main>
-    
-    <!-- Toast Notifications -->
-    <Toast position="top-right" />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import Toast from 'primevue/toast'
 import { useSettingsStore } from '../store/settings'
 
 const route = useRoute()
 const isDark = ref(false)
 const settingsStore = useSettingsStore()
+const appVersion = ref('1.0.0')
+const updateAvailable = ref(false)
+const checkingForUpdates = ref(false)
+const newVersion = ref('')
 
 const _pageTitle = computed(() => {
   const titles = {
@@ -182,6 +213,35 @@ const _toggleTheme = () => {
   }
 }
 
+const installUpdate = async () => {
+  console.log('[MainLayout] Instalando actualización...')
+  if (window.electronAPI && window.electronAPI.appRestartAndInstallUpdate) {
+    await window.electronAPI.appRestartAndInstallUpdate()
+  }
+}
+
+const checkForUpdates = async () => {
+  console.log('[MainLayout] Verificando actualizaciones manualmente...')
+  checkingForUpdates.value = true
+  
+  try {
+    if (window.electronAPI && window.electronAPI.appCheckForUpdates) {
+      const response = await window.electronAPI.appCheckForUpdates()
+      console.log('[MainLayout] Respuesta de verificación:', response)
+      
+      if (!response.success) {
+        console.log('[MainLayout] No se pudo verificar actualizaciones:', response.error)
+      }
+    }
+  } catch (error) {
+    console.error('[MainLayout] Error verificando actualizaciones:', error)
+  } finally {
+    setTimeout(() => {
+      checkingForUpdates.value = false
+    }, 3000)
+  }
+}
+
 onMounted(async () => {
   // Check for saved theme preference or default to light
   const savedTheme = localStorage.getItem('theme')
@@ -195,5 +255,35 @@ onMounted(async () => {
   
   // Load CodebaseHQ configuration to check if it's configured
   await settingsStore.loadCodebaseConfig()
+  
+  // Obtener versión de la aplicación
+  if (window.electronAPI && window.electronAPI.appGetVersion) {
+    const versionResponse = await window.electronAPI.appGetVersion()
+    if (versionResponse.success) {
+      appVersion.value = versionResponse.data.version
+    }
+  }
+  
+  // Escuchar eventos de actualización
+  if (window.electronAPI && window.electronAPI.onUpdateDownloaded) {
+    console.log('[MainLayout] Registrando listener para actualizaciones...')
+    window.electronAPI.onUpdateDownloaded((event, info) => {
+      console.log('[MainLayout] ¡Actualización descargada!', info)
+      updateAvailable.value = true
+      // Si viene información de la versión, mostrarla
+      if (info && info.version) {
+        newVersion.value = info.version
+      } else {
+        // Por defecto asumir que es la 1.2.0
+        newVersion.value = '1.2.0'
+      }
+    })
+  }
+  
+  // Verificar actualizaciones automáticamente al inicio
+  console.log('[MainLayout] Verificando actualizaciones al iniciar...')
+  setTimeout(() => {
+    checkForUpdates()
+  }, 5000) // Esperar 5 segundos después de iniciar
 })
 </script>
