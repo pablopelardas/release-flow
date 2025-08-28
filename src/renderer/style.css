@@ -317,6 +317,57 @@ body {
   z-index: 999;
 }
 
+/* Modal responsive styles - scroll en pantallas pequeñas */
+@media (max-height: 700px) {
+  .p-dialog {
+    max-height: 90vh;
+    margin: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .p-dialog .p-dialog-content {
+    overflow-y: auto;
+    flex: 1;
+    max-height: none;
+  }
+
+  .p-dialog .p-dialog-header {
+    flex-shrink: 0;
+  }
+
+  .p-dialog .p-dialog-footer {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .p-dialog {
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+    margin: 1rem;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .p-dialog .p-dialog-content {
+    overflow-y: auto;
+    flex: 1;
+    padding: 1rem;
+  }
+
+  .p-dialog .p-dialog-header {
+    padding: 1rem 1rem 0 1rem;
+    flex-shrink: 0;
+  }
+
+  .p-dialog .p-dialog-footer {
+    padding: 0 1rem 1rem 1rem;
+    flex-shrink: 0;
+  }
+}
+
 /* Custom scrollbar - Light mode */
 ::-webkit-scrollbar {
   width: 12px;

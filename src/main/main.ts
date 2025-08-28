@@ -1177,7 +1177,20 @@ ipcMain.handle('app-restart-and-install-update', async () => {
 
 ipcMain.handle('app-get-version', async () => {
   try {
-    return { success: true, data: { version: app.getVersion() } }
+    let version = app.getVersion()
+    
+    // En desarrollo, usar la versión del package.json
+    if (isDev) {
+      try {
+        const packageJsonPath = path.join(__dirname, '..', '..', 'package.json')
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+        version = packageJson.version || version
+      } catch (packageError) {
+        console.warn('No se pudo leer package.json, usando versión de app:', packageError)
+      }
+    }
+    
+    return { success: true, data: { version } }
   } catch (error) {
     console.error('Error getting app version:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
