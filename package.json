@@ -1,6 +1,6 @@
 {
   "name": "releaseflow-electron",
-  "version": "1.2.5",
+  "version": "1.2.7",
   "type": "module",
   "description": "ReleaseFlow Desktop - Aplicación Electron para gestión automatizada de releases",
   "main": "dist/main/main.js",

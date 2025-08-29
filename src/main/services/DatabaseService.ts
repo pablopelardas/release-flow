@@ -313,167 +313,113 @@ export class DatabaseService {
     const predefinedTemplates = [
       {
         name: 'Release Notes Estándar',
-        description: 'Template formal para release notes',
+        description: 'Template optimizado para Teams, JIRA y notificaciones con todos los tipos de commit',
         category: 'predefined',
-        content: `# Release Notes v{{ version }}
-**Fecha de Lanzamiento:** {{ date | formatDate }}
-**Tipo de Release:** {{ type }}
+        content: `**Release v{{ version }}** - {{ date | formatDate }}
 
-{% assign has_feat = false %}
+{% if custom_notes and custom_notes != "" %}{{ custom_notes }}
+
+{% endif %}{% assign has_feat = false %}
 {% assign has_fix = false %}
 {% assign has_docs = false %}
-{% assign has_chore = false %}
-{% assign has_other = false %}
-{% for commit in commits %}
-  {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
-  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
-  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
-  {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
-  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}{% assign has_other = true %}{% endunless %}
-{% endfor %}
-{% if has_feat %}
-## 🚀 Nuevas Características
-{% for commit in commits %}{% if commit.type == "feat" %}- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}{% endfor %}
-{% endif %}
-{% if has_fix %}
-## 🐛 Correcciones
-{% for commit in commits %}{% if commit.type == "fix" %}- {{ commit.subject }} (#{{ commit.hash | slice: 0, 7 }})
-{% endif %}{% endfor %}
-{% endif %}
-{% if has_docs %}
-## 📝 Documentación
-{% for commit in commits %}{% if commit.type == "docs" %}- {{ commit.subject }}
-{% endif %}{% endfor %}
-{% endif %}
-{% if has_chore %}
-## 🔧 Mantenimiento
-{% for commit in commits %}{% if commit.type == "chore" %}- {{ commit.subject }}
-{% endif %}{% endfor %}
-{% endif %}
-{% if has_other %}
-## 📝 Otros Cambios
-{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "chore" %}- {{ commit.subject }}
-{% endunless %}{% endfor %}
-{% endif %}`,
-      },
-      {
-        name: 'Changelog Simple',
-        description: 'Template minimalista para changelogs',
-        category: 'predefined',
-        content: `## v{{ version }} - {{ date | date: "%Y-%m-%d" }}
-
-{% assign has_feat = false %}
-{% assign has_fix = false %}
+{% assign has_style = false %}
 {% assign has_refactor = false %}
+{% assign has_test = false %}
+{% assign has_chore = false %}
+{% assign has_perf = false %}
+{% assign has_ci = false %}
+{% assign has_build = false %}
+{% assign has_revert = false %}
 {% assign has_other = false %}
 
 {% for commit in commits %}
   {% if commit.type == "feat" %}{% assign has_feat = true %}{% endif %}
   {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
+  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
+  {% if commit.type == "style" %}{% assign has_style = true %}{% endif %}
   {% if commit.type == "refactor" %}{% assign has_refactor = true %}{% endif %}
-  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "refactor" %}{% assign has_other = true %}{% endunless %}
+  {% if commit.type == "test" %}{% assign has_test = true %}{% endif %}
+  {% if commit.type == "chore" %}{% assign has_chore = true %}{% endif %}
+  {% if commit.type == "perf" %}{% assign has_perf = true %}{% endif %}
+  {% if commit.type == "ci" %}{% assign has_ci = true %}{% endif %}
+  {% if commit.type == "build" %}{% assign has_build = true %}{% endif %}
+  {% if commit.type == "revert" %}{% assign has_revert = true %}{% endif %}
+  {% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "style" or commit.type == "refactor" or commit.type == "test" or commit.type == "chore" or commit.type == "perf" or commit.type == "ci" or commit.type == "build" or commit.type == "revert" %}{% assign has_other = true %}{% endunless %}
 {% endfor %}
 
 {% if has_feat %}
-### Added
-{% for commit in commits %}{% if commit.type == "feat" %}
-- {{ commit.subject }}
+
+#### 🚀 Nuevas funcionalidades
+{% for commit in commits %}{% if commit.type == "feat" %}• {{ commit.subject }}
 {% endif %}{% endfor %}
 
-{% endif %}
-{% if has_fix %}
-### Fixed
-{% for commit in commits %}{% if commit.type == "fix" %}
-- {{ commit.subject }}
+{% endif %}{% if has_fix %}
+
+#### 🔧 Correcciones
+{% for commit in commits %}{% if commit.type == "fix" %}• {{ commit.subject }}
 {% endif %}{% endfor %}
 
-{% endif %}
-{% if has_refactor %}
-### Changed
-{% for commit in commits %}{% if commit.type == "refactor" %}
-- {{ commit.subject }}
+{% endif %}{% if has_perf %}
+
+#### ⚡ Mejoras de rendimiento
+{% for commit in commits %}{% if commit.type == "perf" %}• {{ commit.subject }}
 {% endif %}{% endfor %}
 
-{% endif %}
-{% if has_other %}
-### Other
-{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "refactor" %}
-- {{ commit.subject }}
+{% endif %}{% if has_refactor %}
+
+#### 🔄 Refactorización
+{% for commit in commits %}{% if commit.type == "refactor" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_test %}
+
+#### 🧪 Pruebas
+{% for commit in commits %}{% if commit.type == "test" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_docs %}
+
+#### 📚 Documentación
+{% for commit in commits %}{% if commit.type == "docs" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_style %}
+
+#### 🎨 Estilos
+{% for commit in commits %}{% if commit.type == "style" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_chore %}
+
+#### 🔧 Mantenimiento
+{% for commit in commits %}{% if commit.type == "chore" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_ci %}
+
+#### 🚀 CI/CD
+{% for commit in commits %}{% if commit.type == "ci" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_build %}
+
+#### 🏗️ Build
+{% for commit in commits %}{% if commit.type == "build" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_revert %}
+
+#### ⏪ Reversiones
+{% for commit in commits %}{% if commit.type == "revert" %}• {{ commit.subject }}
+{% endif %}{% endfor %}
+
+{% endif %}{% if has_other %}
+
+#### 📦 Otros cambios
+{% for commit in commits %}{% unless commit.type == "feat" or commit.type == "fix" or commit.type == "docs" or commit.type == "style" or commit.type == "refactor" or commit.type == "test" or commit.type == "chore" or commit.type == "perf" or commit.type == "ci" or commit.type == "build" or commit.type == "revert" %}• {{ commit.subject }}
 {% endunless %}{% endfor %}
 
 {% endif %}`,
-      },
-      {
-        name: 'Release Notes con Breaking Changes',
-        description: 'Template para releases con cambios importantes',
-        category: 'predefined',
-        content: `# 🎉 Release v{{ version }}
-
-{% assign has_breaking = false %}
-{% assign has_feat = false %}
-{% assign has_fix = false %}
-{% assign has_maintenance = false %}
-{% assign has_docs = false %}
-
-{% for commit in commits %}
-  {% if commit.breaking %}{% assign has_breaking = true %}{% endif %}
-  {% if commit.type == "feat" and commit.breaking != true %}{% assign has_feat = true %}{% endif %}
-  {% if commit.type == "fix" %}{% assign has_fix = true %}{% endif %}
-  {% if commit.type == "chore" or commit.type == "refactor" %}{% assign has_maintenance = true %}{% endif %}
-  {% if commit.type == "docs" %}{% assign has_docs = true %}{% endif %}
-{% endfor %}
-
-{% if has_breaking %}
-## ⚠️ Breaking Changes
-{% for commit in commits %}{% if commit.breaking %}
-- **{{ commit.subject }}**: {{ commit.body | default: "Ver documentación para más detalles" }}
-{% endif %}{% endfor %}
-
-{% endif %}
-{% if has_feat %}
-## ✨ Features
-{% for commit in commits %}{% if commit.type == "feat" and commit.breaking != true %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-{% endif %}
-{% if has_fix %}
-## 🐛 Bug Fixes
-{% for commit in commits %}{% if commit.type == "fix" %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-{% endif %}
-{% if has_maintenance %}
-## 🔧 Maintenance
-{% for commit in commits %}{% if commit.type == "chore" or commit.type == "refactor" %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-{% endif %}
-{% if has_docs %}
-## 📖 Documentation
-{% for commit in commits %}{% if commit.type == "docs" %}
-- {{ commit.subject }}
-{% endif %}{% endfor %}
-
-{% endif %}
----
-
-### Instalación
-\`\`\`bash
-npm install your-package@{{ version }}
-\`\`\`
-
-{% if has_breaking %}
-### Migración
-⚠️ Esta versión incluye cambios que rompen compatibilidad. 
-Ver [Guía de Migración](./MIGRATION.md) para más detalles.
-{% endif %}
-
-**Fecha:** {{ date | date: "%d de %B de %Y" }}
-**Autor:** {{ author | default: "Release Team" }}`,
       },
     ]
 

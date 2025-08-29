@@ -1103,20 +1103,32 @@ const cleanAutomaticGenerationText = (text) => {
 
 const convertMarkdownToHtml = (markdown) => {
   return markdown
-    // Headers
-    .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">$1</h1>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-lg font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
-    .replace(/^#### (.+)$/gm, '<h4 class="text-base font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h4>')
-    // Bold text
+    // Headers - hacer más pequeños para evitar títulos enormes
+    .replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mb-3 text-gray-900 dark:text-white">$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-base font-semibold mb-2 text-gray-800 dark:text-gray-200">$2</h2>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h3>')
+    .replace(/^#### (.+)$/gm, '<h4 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">$1</h4>')
+    
+    // Líneas con emoji y **bold** - convertir a divs con espaciado 
+    .replace(/^(🚀|🐛|⚡|♻️|🧪|📝|💄|🔧|👷|📦|⏪|📋) \*\*(.+?):\*\*$/gm, '<div class="mb-4"><span class="text-lg">$1</span> <strong class="font-semibold text-gray-900 dark:text-white text-base">$2:</strong></div>')
+    
+    // Lista de commits (líneas con • )
+    .replace(/^• (.+)$/gm, '<div class="ml-6 mb-2 text-sm text-gray-700 dark:text-gray-300">• $1</div>')
+    
+    // Bold text general
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>')
-    // List items - envolver en <ul>
+    
+    // Regular list items - envolver en <ul>
     .replace(/(^- .+$\n?)+/gm, (match) => {
       const items = match.trim().split('\n').map(line => 
         line.replace(/^- (.+)$/, '<li class="mb-1 text-gray-700 dark:text-gray-300">$1</li>')
       ).join('\n')
       return `<ul class="list-none space-y-1 mb-4">\n${items}\n</ul>`
     })
+    
+    // Múltiples saltos de línea a espaciado
+    .replace(/\n\s*\n\s*\n/g, '<div class="mb-4"></div>')
+    .replace(/\n\n/g, '<div class="mb-3"></div>')
     // Horizontal rule
     .replace(/^---$/gm, '<hr class="my-4 border-gray-300 dark:border-gray-600">')
     // Italic text

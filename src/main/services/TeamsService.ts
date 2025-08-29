@@ -296,27 +296,27 @@ export class TeamsService {
 
     // Build release notes as HTML formatted text for Teams
     const releaseNotesHtml = notification.releaseNotes
-      ? `<h3>📋 Release Notes</h3>
+      ? `<h3>📋 Release Notes</h3><br>
 ${notification.releaseNotes
-  .replace(/<[^>]*>/g, '') // Remove existing HTML tags first
+  .replace(/<h4[^>]*>([^<]+)<\/h4>/gi, '\n\n**$1**\n\n') // Convert h4 to bold with spacing BEFORE removing HTML
+  .replace(/<[^>]*>/g, '') // Remove remaining HTML tags
   .replace(/&nbsp;/g, ' ')
   .replace(/&amp;/g, '&')
   .replace(/&lt;/g, '<')
   .replace(/&gt;/g, '>')
-  .replace(/^#+\s+(.+)$/gm, '<h4>$1</h4>') // Convert markdown headers to HTML h4
+  .replace(/\n\s*\n\s*\n/g, '\n\n\n') // Preserve triple line breaks
+  .replace(/\n\s*\n/g, '\n\n') // Preserve double line breaks
   .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') // Convert **text** to bold
   .replace(/\*(.+?)\*/g, '<em>$1</em>') // Convert *text* to italic
-  .replace(/^🚀\s+(.+)$/gm, '<h4>🚀 $1</h4>') // Section headers with emoji
-  .replace(/^🐛\s+(.+)$/gm, '<h4>🐛 $1</h4>')
-  .replace(/^📝\s+(.+)$/gm, '<h4>📝 $1</h4>')
-  .replace(/^⚡\s+(.+)$/gm, '<h4>⚡ $1</h4>')
-  .replace(/^🔧\s+(.+)$/gm, '<h4>🔧 $1</h4>')
-  .replace(/^-\s+(.+)$/gm, '<li>$1</li>') // Convert - list items to HTML
-  .replace(/^\*\s+(.+)$/gm, '<li>$1</li>') // Convert * list items to HTML
-  .replace(/\(#([a-f0-9]{7,})\)/gi, '<code>#$1</code>') // Format commit hashes
-  .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>') // Wrap consecutive li items in ul
-  .replace(/\n\n+/g, '<br><br>') // Convert double line breaks to HTML breaks
-  .replace(/\n/g, '<br>')}` // Convert single line breaks to HTML breaks
+  .replace(/^•\s+(.+)$/gm, '• $1') // Keep bullet points as text
+  .replace(/^-\s+(.+)$/gm, '• $1') // Convert - to bullet points
+  .replace(/^\*\s+(.+)$/gm, '• $1') // Convert * to bullet points
+  .replace(/\(#([a-f0-9]{7,})\)/gi, '(#$1)') // Keep commit hashes as text
+  .replace(/\n\n\n+/g, '\n\n\n') // Normalize multiple line breaks to max 3
+  .replace(/\n\n\n/g, '<br><br><br>') // Convert triple breaks to HTML first
+  .replace(/\n\n/g, '<br><br>') // Convert double breaks to HTML
+  .replace(/\n/g, '<br>') // Convert single breaks to HTML
+}`
       : null
 
     // Return payload compatible with Teams webhook trigger (free version)
