@@ -52,130 +52,165 @@
       </div>
     </div>
 
-    <!-- Repository Cards Grid -->
-    <div v-if="repositories.length > 0" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-      <div v-for="repo in filteredRepositories" :key="repo.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow repository-card">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center space-x-3">
-            <div class="flex-1">
-              <div class="flex items-center space-x-2">
-                <h3 class="font-semibold text-gray-900 dark:text-white">{{ repo.name }}</h3>
-                <span v-if="repo.is_main_repository" class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
-                  Principal
-                </span>
-                <span v-else-if="!repo.is_main_repository" class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
-                  Secundario
-                </span>
+    <!-- Repository List -->
+    <div v-if="repositories.length > 0" class="space-y-3">
+      <div v-for="repo in filteredRepositories" :key="repo.id" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 repository-card">
+        <!-- Header Card - Siempre visible -->
+        <div class="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg" @click="toggleRepoExpansion(repo.id)">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3 flex-1">
+              <div class="flex-1">
+                <div class="flex items-center space-x-3">
+                  <i :class="expandedRepos[repo.id] ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="text-gray-400 text-sm transition-transform"></i>
+                  <h3 class="font-semibold text-gray-900 dark:text-white">{{ repo.name }}</h3>
+                  <span v-if="repo.is_main_repository" class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
+                    Principal
+                  </span>
+                  <span v-else class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
+                    Secundario
+                  </span>
+                </div>
+                <div class="flex items-center space-x-4 mt-1">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ repo.path }}</p>
+                  <div class="flex items-center space-x-3 text-xs">
+                    <span class="text-gray-400 dark:text-gray-500">
+                      <i class="pi pi-code-branch mr-1"></i>{{ repo.current_branch || 'N/A' }}
+                    </span>
+                    <span :class="repo.is_clean === null || repo.is_clean === undefined ? 'text-gray-400' : (repo.is_clean ? 'text-green-500' : 'text-yellow-500')">
+                      <i :class="repo.is_clean === null || repo.is_clean === undefined ? 'pi pi-question-circle' : (repo.is_clean ? 'pi pi-check-circle' : 'pi pi-exclamation-circle')" class="mr-1"></i>
+                      {{ repo.is_clean === null || repo.is_clean === undefined ? 'N/A' : (repo.is_clean ? 'Limpio' : 'Cambios') }}
+                    </span>
+                    <span v-if="repo.last_tag" class="text-purple-500">
+                      <i class="pi pi-tag mr-1"></i>{{ repo.last_tag }}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">{{ repo.path }}</p>
             </div>
-          </div>
-        </div>
-        
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Rama actual:</span>
-            <span class="text-sm text-gray-900 dark:text-white">{{ repo.current_branch || 'No disponible' }}</span>
-          </div>
-          
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Estado:</span>
-            <span class="text-sm" :class="repo.is_clean === null || repo.is_clean === undefined ? 'text-gray-500 dark:text-gray-400' : (repo.is_clean ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400')">
-              {{ repo.is_clean === null || repo.is_clean === undefined ? 'No disponible' : (repo.is_clean ? 'Limpio' : 'Con cambios') }}
-            </span>
-          </div>
-          
-          <div v-if="repo.tag_prefix" class="flex items-center justify-between">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Prefijo de Tag:</span>
-            <span class="text-sm text-gray-900 dark:text-white font-mono">{{ repo.tag_prefix }}</span>
-          </div>
-          
-          <div v-if="repo.codebase_enabled" class="flex items-center justify-between">
-            <span class="text-sm text-gray-600 dark:text-gray-400">CodebaseHQ:</span>
+            <!-- Quick Actions -->
             <div class="flex items-center space-x-2">
-              <i class="pi pi-cloud-upload text-purple-500"></i>
-              <span class="text-sm text-purple-600 dark:text-purple-400">{{ repo.codebase_environment }}</span>
+              <button 
+                @click.stop="refreshRepository(repo)" 
+                class="text-blue-500 hover:text-blue-700 p-1 rounded"
+                title="Actualizar estado"
+              >
+                <i class="pi pi-refresh text-sm"></i>
+              </button>
+              <button 
+                @click.stop="editRepository(repo)" 
+                class="text-yellow-500 hover:text-yellow-700 p-1 rounded"
+                title="Editar"
+              >
+                <i class="pi pi-pencil text-sm"></i>
+              </button>
             </div>
           </div>
-          
-          <!-- Last Tag Display -->
-          <div v-if="repo.last_tag" class="flex items-center justify-between">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Último tag:</span>
-            <span class="text-sm font-semibold text-green-600 dark:text-green-400">
-              <i class="pi pi-tag text-xs mr-1"></i>{{ repo.last_tag }}
-            </span>
-          </div>
-          
-          <div v-if="repo.url" class="flex items-center justify-between">
-            <span class="text-sm text-gray-600 dark:text-gray-400">URL:</span>
-            <span class="text-sm text-purple-600 dark:text-purple-400 truncate max-w-[150px]" :title="repo.url">
-              <i class="pi pi-link text-xs mr-1"></i>Configurada
-            </span>
-          </div>
         </div>
         
-        <div class="flex space-x-2 mt-4">
-          <button 
-            @click="openRepository(repo)" 
-            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm transition-colors"
-            title="Abrir en explorador"
-          >
-            <i class="pi pi-folder-open text-xs"></i>
-          </button>
-          <button 
-            v-if="repo.url"
-            @click="openRepositoryUrl(repo)" 
-            class="flex-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 px-3 py-2 rounded text-sm transition-colors"
-            title="Ver en CodebaseHQ"
-          >
-            <i class="pi pi-external-link text-xs"></i>
-          </button>
-          <button 
-            @click="editRepository(repo)" 
-            class="flex-1 bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900 dark:hover:bg-yellow-800 text-yellow-700 dark:text-yellow-300 px-3 py-2 rounded text-sm transition-colors"
-            title="Editar repositorio"
-          >
-            <i class="pi pi-pencil text-xs"></i>
-          </button>
-          <button 
-            @click="refreshRepository(repo)" 
-            class="flex-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-3 py-2 rounded text-sm transition-colors"
-            title="Actualizar estado"
-          >
-            <i class="pi pi-refresh text-xs"></i>
-          </button>
-          <button 
-            @click="removeRepository(repo)" 
-            class="flex-1 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm transition-colors"
-            title="Eliminar repositorio"
-          >
-            <i class="pi pi-trash text-xs"></i>
-          </button>
-        </div>
-        
-        <!-- Configuration Buttons Row -->
-        <div v-if="repo.is_main_repository || settingsStore.isCodebaseConfigured" class="flex space-x-2 mt-3">
-          <!-- Configure Secondary Repositories Button for Main Repositories -->
-          <button 
-            v-if="repo.is_main_repository"
-            @click="configureSecondaryRepos(repo)"
-            class="flex-1 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-center space-x-1"
-            title="Configurar Repositorios Secundarios"
-          >
-            <span class="text-sm">⚙️</span>
-            <span>Repos Sec.</span>
-          </button>
-          
-          <!-- Configure CodebaseHQ Button -->
-          <button 
-            v-if="settingsStore.isCodebaseConfigured"
-            @click="configureCodebaseHQ(repo)"
-            class="flex-1 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-400 px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-center space-x-1"
-            title="Configurar CodebaseHQ"
-          >
-            <i class="pi pi-cloud-upload text-xs"></i>
-            <span>CodebaseHQ</span>
-          </button>
+        <!-- Expanded Details -->
+        <div v-if="expandedRepos[repo.id]" class="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-b-lg">
+          <div class="p-4 space-y-4">
+            
+            <!-- Repository Details -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-3">
+                <h4 class="font-medium text-gray-900 dark:text-white text-sm">Detalles del Repositorio</h4>
+                
+                <div v-if="repo.tag_prefix" class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Prefijo de Tag:</span>
+                  <span class="text-sm text-gray-900 dark:text-white font-mono">{{ repo.tag_prefix }}</span>
+                </div>
+                
+                <div v-if="repo.codebase_enabled" class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">CodebaseHQ:</span>
+                  <div class="flex items-center space-x-2">
+                    <i class="pi pi-cloud-upload text-purple-500"></i>
+                    <span class="text-sm text-purple-600 dark:text-purple-400">{{ repo.codebase_environment }}</span>
+                  </div>
+                </div>
+                
+                <div v-if="repo.url" class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600 dark:text-gray-400">URL:</span>
+                  <button 
+                    @click="openRepositoryUrl(repo)"
+                    class="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                    title="Abrir URL"
+                  >
+                    <i class="pi pi-external-link text-xs mr-1"></i>Ver repositorio
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Secondary Repositories (for main repos) -->
+              <div v-if="repo.is_main_repository && getSecondaryRepos(repo.id).length > 0" class="space-y-3">
+                <h4 class="font-medium text-gray-900 dark:text-white text-sm">Repositorios Secundarios</h4>
+                <div class="space-y-2">
+                  <div v-for="secondaryRepo in getSecondaryRepos(repo.id)" :key="secondaryRepo.id" class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center justify-between">
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ secondaryRepo.name }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate" :title="secondaryRepo.path">{{ secondaryRepo.path }}</p>
+                      </div>
+                      <div class="flex items-center space-x-2 ml-2">
+                        <span class="text-xs" :class="secondaryRepo.is_clean === null || secondaryRepo.is_clean === undefined ? 'text-gray-400' : (secondaryRepo.is_clean ? 'text-green-500' : 'text-yellow-500')">
+                          <i :class="secondaryRepo.is_clean === null || secondaryRepo.is_clean === undefined ? 'pi pi-question-circle' : (secondaryRepo.is_clean ? 'pi pi-check-circle' : 'pi pi-exclamation-circle')"></i>
+                        </span>
+                        <button 
+                          @click="openRepository(secondaryRepo)"
+                          class="text-gray-400 hover:text-gray-600 text-xs"
+                          title="Abrir en explorador"
+                        >
+                          <i class="pi pi-folder-open"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <button 
+                @click="openRepository(repo)" 
+                class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm transition-colors flex items-center space-x-2"
+                title="Abrir en explorador"
+              >
+                <i class="pi pi-folder-open text-xs"></i>
+                <span>Explorador</span>
+              </button>
+              
+              <button 
+                @click="removeRepository(repo)" 
+                class="bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm transition-colors flex items-center space-x-2"
+                title="Eliminar repositorio"
+              >
+                <i class="pi pi-trash text-xs"></i>
+                <span>Eliminar</span>
+              </button>
+              
+              <!-- Configuration Buttons -->
+              <button 
+                v-if="repo.is_main_repository"
+                @click="configureSecondaryRepos(repo)"
+                class="bg-green-100 hover:bg-green-200 dark:bg-green-900/50 dark:hover:bg-green-900 text-green-700 dark:text-green-400 px-3 py-2 rounded text-sm transition-colors flex items-center space-x-2"
+                title="Configurar Repositorios Secundarios"
+              >
+                <span>⚙️</span>
+                <span>Repos Secundarios</span>
+              </button>
+              
+              <button 
+                v-if="settingsStore.isCodebaseConfigured"
+                @click="configureCodebaseHQ(repo)"
+                class="bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-400 px-3 py-2 rounded text-sm transition-colors flex items-center space-x-2"
+                title="Configurar CodebaseHQ"
+              >
+                <i class="pi pi-cloud-upload text-xs"></i>
+                <span>CodebaseHQ</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -651,6 +686,7 @@ const settingsStore = useSettingsStore()
 const showAddDialog = ref(false)
 const searchQuery = ref('')
 const showSecondaryRepos = ref(true)
+const expandedRepos = ref({})
 const newRepoPath = ref('')
 const newRepoName = ref('')
 const newRepoUrl = ref('')
@@ -734,6 +770,42 @@ const filteredRepositories = computed(() => {
   
   return searchFiltered
 })
+
+// Obtener repositorios secundarios configurados para un repositorio principal
+const configuredSecondaryRepos = ref({})
+
+const loadSecondaryRepos = async (mainRepoId) => {
+  try {
+    const response = await window.electronAPI.dbGetSecondaryRepositories(mainRepoId)
+    if (response.success && response.data.repositories) {
+      const secondaryIds = response.data.repositories.map(r => r.id)
+      configuredSecondaryRepos.value[mainRepoId] = repositories.value.filter(repo => 
+        secondaryIds.includes(repo.id)
+      )
+    } else {
+      configuredSecondaryRepos.value[mainRepoId] = []
+    }
+  } catch (error) {
+    console.error('Error loading secondary repos:', error)
+    configuredSecondaryRepos.value[mainRepoId] = []
+  }
+}
+
+const getSecondaryRepos = (mainRepoId) => {
+  return configuredSecondaryRepos.value[mainRepoId] || []
+}
+
+const toggleRepoExpansion = async (repoId) => {
+  expandedRepos.value[repoId] = !expandedRepos.value[repoId]
+  
+  // Si se está expandiendo un repositorio principal, cargar sus repositorios secundarios
+  if (expandedRepos.value[repoId]) {
+    const repo = repositories.value.find(r => r.id === repoId)
+    if (repo && repo.is_main_repository) {
+      await loadSecondaryRepos(repoId)
+    }
+  }
+}
 
 const selectFolder = async () => {
   try {
@@ -964,6 +1036,10 @@ const saveSecondaryRepos = async () => {
     
     if (response.success) {
       console.log('✅ Secondary repositories updated successfully')
+      
+      // Recargar inmediatamente los repositorios secundarios configurados
+      await loadSecondaryRepos(mainRepoId)
+      
       cancelConfigureSecondaries()
     } else {
       console.error('❌ Error updating secondary repositories:', response.error)
