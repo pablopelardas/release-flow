@@ -15,9 +15,46 @@
       </button>
     </div>
 
+    <!-- Search Bar and Filters -->
+    <div class="space-y-3">
+      <div class="flex items-center space-x-4">
+        <div class="flex-1 relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="pi pi-search text-gray-400"></i>
+          </div>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Buscar repositorios por nombre, path o rama..."
+            class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div v-if="searchQuery" class="text-sm text-gray-500 dark:text-gray-400">
+          {{ filteredRepositories.length }} de {{ repositories.length }} repositorios
+        </div>
+      </div>
+      
+      <!-- Filter Options -->
+      <div class="flex items-center space-x-6">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input 
+            type="checkbox"
+            v-model="showSecondaryRepos"
+            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+          />
+          <span class="text-sm text-gray-700 dark:text-gray-300">
+            Mostrar repositorios secundarios
+          </span>
+        </label>
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+          ({{ secondaryReposCount }} secundarios)
+        </div>
+      </div>
+    </div>
+
     <!-- Repository Cards Grid -->
     <div v-if="repositories.length > 0" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-      <div v-for="repo in repositories" :key="repo.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow repository-card">
+      <div v-for="repo in filteredRepositories" :key="repo.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow repository-card">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center space-x-3">
             <div class="flex-1">
@@ -25,6 +62,9 @@
                 <h3 class="font-semibold text-gray-900 dark:text-white">{{ repo.name }}</h3>
                 <span v-if="repo.is_main_repository" class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
                   Principal
+                </span>
+                <span v-else-if="!repo.is_main_repository" class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
+                  Secundario
                 </span>
               </div>
               <p class="text-sm text-gray-500 dark:text-gray-400">{{ repo.path }}</p>
@@ -154,9 +194,14 @@
     </div>
 
     <!-- Add Repository Dialog -->
-    <div v-if="showAddDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Agregar Repositorio</h2>
+    <div v-if="showAddDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-96 max-w-full flex flex-col" style="max-height: 85vh;">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-600" style="flex-shrink: 0;">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Agregar Repositorio</h2>
+        </div>
+        <!-- Content -->
+        <div class="px-6 py-4" style="flex: 1; overflow-y: auto; min-height: 0;">
         
         <div class="space-y-4">
           <div>
@@ -286,33 +331,42 @@
           </div>
         </div>
         
-        <div class="flex space-x-3 mt-6">
-          <button 
-            @click="showAddDialog = false" 
-            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
-          >
-            Cancelar
-          </button>
-          <button 
-            @click="addRepository" 
-            :disabled="!newRepoPath" 
-            class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 px-4 py-2 rounded transition-colors btn-add-repo"
-          >
-            Agregar
-          </button>
+        </div>
+        <!-- Footer -->
+        <div class="px-6 py-3 border-t border-gray-200 dark:border-gray-600" style="flex-shrink: 0;">
+          <div class="flex space-x-3">
+            <button 
+              @click="showAddDialog = false" 
+              class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+            <button 
+              @click="addRepository" 
+              :disabled="!newRepoPath" 
+              class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 px-3 py-2 rounded transition-colors btn-add-repo text-sm"
+            >
+              Agregar
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Configure Secondary Repositories Modal -->
-    <div v-if="showConfigureSecondariesDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96 max-w-full max-h-[80vh] overflow-y-auto">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Configurar Repositorios Secundarios
-        </h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Para: <span class="font-semibold">{{ selectedMainRepo?.name }}</span>
-        </p>
+    <div v-if="showConfigureSecondariesDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-96 max-w-full my-8 flex flex-col" style="max-height: calc(100vh - 4rem);">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Configurar Repositorios Secundarios
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Para: <span class="font-semibold">{{ selectedMainRepo?.name }}</span>
+          </p>
+        </div>
+        <!-- Content -->
+        <div class="p-6 flex-1" style="overflow-y: auto; min-height: 0;">
         
         <div class="space-y-3 mb-6">
           <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -354,32 +408,41 @@
           </div>
         </div>
         
-        <div class="flex space-x-3">
-          <button 
-            @click="cancelConfigureSecondaries" 
-            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
-          >
-            Cancelar
-          </button>
-          <button 
-            @click="saveSecondaryRepos" 
-            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-          >
-            Guardar
-          </button>
+        </div>
+        <!-- Footer -->
+        <div class="p-6 border-t border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <div class="flex space-x-3">
+            <button 
+              @click="cancelConfigureSecondaries" 
+              class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
+            >
+              Cancelar
+            </button>
+            <button 
+              @click="saveSecondaryRepos" 
+              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
+            >
+              Guardar
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Configure CodebaseHQ Modal -->
-    <div v-if="showConfigureCodebaseDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96 max-w-full">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Configurar CodebaseHQ
-        </h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Para: <span class="font-semibold">{{ selectedCodebaseRepo?.name }}</span>
-        </p>
+    <div v-if="showConfigureCodebaseDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-96 max-w-full my-8 flex flex-col" style="max-height: calc(100vh - 4rem);">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Configurar CodebaseHQ
+          </h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Para: <span class="font-semibold">{{ selectedCodebaseRepo?.name }}</span>
+          </p>
+        </div>
+        <!-- Content -->
+        <div class="p-6 flex-1" style="overflow-y: auto; min-height: 0;">
         
         <div class="space-y-4">
           <div class="flex items-center">
@@ -436,32 +499,41 @@
           </div>
         </div>
         
-        <div class="flex space-x-3 mt-6">
-          <button 
-            @click="cancelConfigureCodebase"
-            :disabled="savingCodebase"
-            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-300 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
-          >
-            Cancelar
-          </button>
-          <button 
-            @click="saveCodebaseConfig"
-            :disabled="savingCodebase"
-            class="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors flex items-center justify-center space-x-2"
-          >
-            <i v-if="savingCodebase" class="pi pi-spin pi-spinner"></i>
-            <span>{{ savingCodebase ? 'Guardando...' : 'Guardar' }}</span>
-          </button>
+        </div>
+        <!-- Footer -->
+        <div class="p-6 border-t border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <div class="flex space-x-3">
+            <button 
+              @click="cancelConfigureCodebase"
+              :disabled="savingCodebase"
+              class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-300 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
+            >
+              Cancelar
+            </button>
+            <button 
+              @click="saveCodebaseConfig"
+              :disabled="savingCodebase"
+              class="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors flex items-center justify-center space-x-2"
+            >
+              <i v-if="savingCodebase" class="pi pi-spin pi-spinner"></i>
+              <span>{{ savingCodebase ? 'Guardando...' : 'Guardar' }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
     
     <!-- Edit Repository Modal -->
-    <div v-if="showEditDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96 max-w-full">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Editar Repositorio
-        </h2>
+    <div v-if="showEditDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-96 max-w-full my-8 flex flex-col" style="max-height: calc(100vh - 4rem);">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+            Editar Repositorio
+          </h2>
+        </div>
+        <!-- Content -->
+        <div class="p-6 flex-1" style="overflow-y: auto; min-height: 0;">
         
         <div class="space-y-4">
           <div>
@@ -543,20 +615,24 @@
           </div>
         </div>
         
-        <div class="flex space-x-3 mt-6">
-          <button 
-            @click="cancelEdit" 
-            class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
-          >
-            Cancelar
-          </button>
-          <button 
-            @click="saveEditRepository" 
-            :disabled="!editRepoName || !editRepoPath" 
-            class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors"
-          >
-            Guardar Cambios
-          </button>
+        </div>
+        <!-- Footer -->
+        <div class="p-6 border-t border-gray-200 dark:border-gray-600 flex-shrink-0">
+          <div class="flex space-x-3">
+            <button 
+              @click="cancelEdit" 
+              class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded transition-colors"
+            >
+              Cancelar
+            </button>
+            <button 
+              @click="saveEditRepository" 
+              :disabled="!editRepoName || !editRepoPath" 
+              class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded transition-colors"
+            >
+              Guardar Cambios
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -573,6 +649,8 @@ const settingsStore = useSettingsStore()
 
 // Reactive data
 const showAddDialog = ref(false)
+const searchQuery = ref('')
+const showSecondaryRepos = ref(true)
 const newRepoPath = ref('')
 const newRepoName = ref('')
 const newRepoUrl = ref('')
@@ -609,6 +687,53 @@ const editRepoIsMain = ref(false)
 
 // Computed properties
 const repositories = computed(() => repositoriesStore.repositories)
+
+const secondaryReposCount = computed(() => {
+  return repositories.value.filter(repo => !repo.is_main_repository).length
+})
+
+const filteredRepositories = computed(() => {
+  let filtered = repositories.value
+  
+  // Primero filtrar por visibilidad de secundarios
+  if (!showSecondaryRepos.value) {
+    filtered = filtered.filter(repo => repo.is_main_repository)
+  }
+  
+  // Luego aplicar búsqueda si existe
+  if (!searchQuery.value.trim()) {
+    return filtered
+  }
+  
+  const query = searchQuery.value.toLowerCase()
+  const matchedRepos = new Set()
+  
+  // Buscar repositorios que coincidan con la consulta
+  repositories.value.forEach(repo => {
+    const matches = (
+      repo.name.toLowerCase().includes(query) ||
+      repo.path.toLowerCase().includes(query) ||
+      (repo.current_branch && repo.current_branch.toLowerCase().includes(query))
+    )
+    
+    if (matches) {
+      matchedRepos.add(repo.id)
+      
+      // La búsqueda incluye tanto principales como secundarios según su configuración
+      // pero no hay relación padre-hijo, solo es una clasificación
+    }
+  })
+  
+  // Aplicar el filtro de búsqueda y luego el de visibilidad
+  let searchFiltered = repositories.value.filter(repo => matchedRepos.has(repo.id))
+  
+  // Aplicar nuevamente el filtro de visibilidad para asegurar consistencia
+  if (!showSecondaryRepos.value) {
+    searchFiltered = searchFiltered.filter(repo => repo.is_main_repository)
+  }
+  
+  return searchFiltered
+})
 
 const selectFolder = async () => {
   try {
