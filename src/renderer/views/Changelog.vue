@@ -341,6 +341,174 @@
           </div>
         </template>
       </Card>
+
+      <!-- Secondary Repositories Changelogs -->
+      <div v-if="secondaryRepos.length > 0" class="space-y-6">
+        <Card 
+          v-for="secondaryRepo in secondaryRepos" 
+          :key="secondaryRepo.id" 
+          class="w-full"
+        >
+          <template #content>
+            <div class="p-6">
+              <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-3">
+                  <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ secondaryRepo.name }}
+                  </h3>
+                  <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
+                    Repositorio Secundario
+                  </span>
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ secondaryChangelogs[secondaryRepo.id]?.releases?.length || 0 }} versiones sincronizadas
+                </div>
+              </div>
+
+              <!-- Repository Info -->
+              <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">Path:</span>
+                  <span class="font-mono text-gray-900 dark:text-white">{{ secondaryRepo.path }}</span>
+                </div>
+                <div v-if="secondaryChangelogs[secondaryRepo.id]?.currentBranch" class="flex items-center justify-between text-sm mt-2">
+                  <span class="text-gray-600 dark:text-gray-400">Rama:</span>
+                  <span class="font-mono text-gray-900 dark:text-white">{{ secondaryChangelogs[secondaryRepo.id].currentBranch }}</span>
+                </div>
+              </div>
+
+              <!-- Error State -->
+              <div v-if="secondaryChangelogs[secondaryRepo.id]?.error" class="text-center py-4">
+                <i class="pi pi-exclamation-triangle text-red-500 text-2xl mb-2"></i>
+                <p class="text-red-600 dark:text-red-400 text-sm">
+                  Error: {{ secondaryChangelogs[secondaryRepo.id].error }}
+                </p>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else-if="!secondaryChangelogs[secondaryRepo.id]?.releases?.length" class="text-center py-6">
+                <i class="pi pi-history text-2xl text-gray-400 mb-2"></i>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">
+                  No se encontraron tags sincronizados en este repositorio
+                </p>
+              </div>
+
+              <!-- Secondary Timeline -->
+              <div v-else class="relative">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-200 dark:bg-green-600"></div>
+                
+                <div class="space-y-6">
+                  <div 
+                    v-for="(release, index) in secondaryChangelogs[secondaryRepo.id].releases" 
+                    :key="release.id"
+                    class="relative flex items-start space-x-6"
+                  >
+                    <!-- Timeline dot -->
+                    <div class="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center relative z-10">
+                      <i class="pi pi-tag text-white text-xs"></i>
+                    </div>
+                    
+                    <!-- Release content -->
+                    <div class="flex-1 min-w-0 bg-white dark:bg-gray-800 border border-green-200 dark:border-green-600 rounded-lg p-6">
+                      <div class="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            {{ release.tag_name || `v${release.version}` }}
+                          </h4>
+                          <p class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ formatDate(release.created_at) }}
+                            <span v-if="release.author" class="ml-2">
+                              • 👤 {{ release.author }}
+                            </span>
+                          </p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                          <span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full text-xs">
+                            Secundario
+                          </span>
+                          <Button 
+                            @click="toggleSecondaryRelease(release, secondaryRepo)" 
+                            :icon="expandedSecondaryReleases.has(`${secondaryRepo.id}-${release.id}`) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" 
+                            size="small" 
+                            text
+                            :loading="loadingSecondaryCommits.has(`${secondaryRepo.id}-${release.id}`)"
+                          />
+                        </div>
+                      </div>
+                      
+                      <!-- Release notes preview -->
+                      <div class="prose dark:prose-invert max-w-none mb-4">
+                        <div class="text-sm text-gray-700 dark:text-gray-300">
+                          <p>Tag sincronizado desde repositorio principal <strong>{{ repositories.find(r => r.id === selectedRepository)?.name }}</strong></p>
+                        </div>
+                      </div>
+                      
+                      <!-- Expandable commits section -->
+                      <div v-if="expandedSecondaryReleases.has(`${secondaryRepo.id}-${release.id}`)" class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <div class="flex items-center justify-between mb-3">
+                          <h5 class="font-medium text-gray-900 dark:text-white">
+                            Commits en este repositorio
+                          </h5>
+                          <span v-if="release.commits" class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ release.commits.length }} commits
+                          </span>
+                        </div>
+
+                        <!-- Loading commits -->
+                        <div v-if="loadingSecondaryCommits.has(`${secondaryRepo.id}-${release.id}`)" class="text-center py-6">
+                          <i class="pi pi-spin pi-spinner text-green-500 text-2xl mb-3"></i>
+                          <p class="text-gray-600 dark:text-gray-400">
+                            Cargando commits entre tags...
+                          </p>
+                        </div>
+
+                        <!-- Commits list -->
+                        <div v-else-if="release.commits && release.commits.length > 0" class="space-y-3 max-h-96 overflow-y-auto">
+                          <div 
+                            v-for="commit in release.commits" 
+                            :key="commit.hash"
+                            class="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-green-100 dark:border-green-800"
+                          >
+                            <div class="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                            <div class="flex-1 min-w-0">
+                              <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                {{ commit.subject }}
+                              </p>
+                              <div class="flex items-center space-x-4 mt-1">
+                                <span class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                  {{ commit.hash.substring(0, 7) }}
+                                </span>
+                                <span v-if="commit.author" class="text-xs text-gray-500 dark:text-gray-400">
+                                  {{ commit.author }}
+                                </span>
+                                <span v-if="commit.date" class="text-xs text-gray-500 dark:text-gray-400">
+                                  {{ formatDate(commit.date) }}
+                                </span>
+                                <span v-if="commit.type && commit.type !== 'other'" class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs rounded">
+                                  {{ commit.type }}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- No commits message -->
+                        <div v-else-if="release.commitsLoaded" class="text-center py-4">
+                          <p class="text-sm text-gray-500 dark:text-gray-400">
+                            No se encontraron commits para esta versión
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
     </div>
 
   </div>
@@ -379,6 +547,10 @@ const releases = ref([])
 const pendingCommits = ref([])
 const expandedReleases = ref(new Set())
 const loadingCommits = ref(new Set())
+const secondaryRepos = ref([])
+const secondaryChangelogs = ref({})
+const expandedSecondaryReleases = ref(new Set())
+const loadingSecondaryCommits = ref(new Set())
 
 // Computed properties
 const repositories = computed(() => repositoriesStore.repositories)
@@ -420,6 +592,10 @@ const loadRepositoryChangelog = async () => {
   // Clear previous state
   expandedReleases.value.clear()
   loadingCommits.value.clear()
+  expandedSecondaryReleases.value.clear()
+  loadingSecondaryCommits.value.clear()
+  secondaryRepos.value = []
+  secondaryChangelogs.value = {}
 
   try {
     // Get repository details by ID
@@ -438,6 +614,11 @@ const loadRepositoryChangelog = async () => {
     
     // Load pending commits
     await loadPendingCommits()
+    
+    // If it's a main repository, load secondary repositories and their changelogs
+    if (repo.is_main_repository) {
+      await loadSecondaryRepositoriesChangelogs()
+    }
     
     console.log('✅ Changelog loaded successfully')
   } catch (err) {
@@ -692,8 +873,19 @@ const generateChangelogContent = async () => {
   let content = `# Changelog - ${repoName}\n\n`
   content += `*Generado el ${new Date().toLocaleDateString('es-ES')}*\n\n`
   
+  // Add repository info
+  if (repo?.is_main_repository && secondaryRepos.value.length > 0) {
+    content += `## 📂 Repositorios incluidos en este changelog\n\n`
+    content += `**Repositorio Principal:** ${repoName}\n`
+    content += `**Repositorios Secundarios:**\n`
+    secondaryRepos.value.forEach(secondaryRepo => {
+      content += `- ${secondaryRepo.name} (${secondaryRepo.path})\n`
+    })
+    content += '\n'
+  }
+  
   if (pendingCommits.value.length > 0) {
-    content += `## 🚧 Cambios Pendientes\n\n`
+    content += `## 🚧 Cambios Pendientes (${repoName})\n\n`
     pendingCommits.value.forEach(commit => {
       content += `- **${commit.subject}** (${commit.hash.substring(0, 7)}) - ${commit.author}\n`
     })
@@ -730,9 +922,9 @@ const generateChangelogContent = async () => {
       }
     }
     
-    // Add commits to export if available
+    // Add commits from main repository
     if (release.commits && release.commits.length > 0) {
-      content += `### Commits incluidos (${release.commits.length}):\n\n`
+      content += `### 📝 Commits en repositorio principal (${release.commits.length}):\n\n`
       release.commits.forEach(commit => {
         const typePrefix = commit.type !== 'other' ? `**${commit.type}**: ` : ''
         content += `- ${typePrefix}${commit.subject} (${commit.hash.substring(0, 7)}) - ${commit.author}\n`
@@ -740,10 +932,226 @@ const generateChangelogContent = async () => {
       content += '\n'
     }
     
+    // Add commits from secondary repositories
+    if (secondaryRepos.value.length > 0) {
+      for (const secondaryRepo of secondaryRepos.value) {
+        const secondaryChangelog = secondaryChangelogs.value[secondaryRepo.id]
+        if (!secondaryChangelog) continue
+        
+        // Find the corresponding release in the secondary repo
+        const secondaryRelease = secondaryChangelog.releases.find(r => r.tag_name === release.tag_name)
+        if (!secondaryRelease) continue
+        
+        // Load commits for this secondary release if not already loaded
+        if (!secondaryRelease.commitsLoaded) {
+          try {
+            const secondaryReleases = secondaryChangelog.releases
+            const currentIndex = secondaryReleases.findIndex(r => r.id === secondaryRelease.id)
+            const nextSecondaryRelease = secondaryReleases[currentIndex + 1]
+            
+            const fromTag = nextSecondaryRelease ? nextSecondaryRelease.tag_name : undefined
+            const toTag = secondaryRelease.tag_name
+            
+            const response = await window.electronAPI.gitGetCommitsBetweenTags(
+              secondaryRepo.path, 
+              fromTag, 
+              toTag
+            )
+            
+            if (response.success && response.data?.commits) {
+              secondaryRelease.commits = response.data.commits
+              secondaryRelease.commitsLoaded = true
+            }
+          } catch (err) {
+            console.warn(`Could not load commits for secondary ${secondaryRepo.name} ${secondaryRelease.tag_name}:`, err)
+          }
+        }
+        
+        // Add secondary repository commits if available
+        if (secondaryRelease.commits && secondaryRelease.commits.length > 0) {
+          content += `### 🔗 Commits en repositorio secundario "${secondaryRepo.name}" (${secondaryRelease.commits.length}):\n\n`
+          secondaryRelease.commits.forEach(commit => {
+            const typePrefix = commit.type !== 'other' ? `**${commit.type}**: ` : ''
+            content += `- ${typePrefix}${commit.subject} (${commit.hash.substring(0, 7)}) - ${commit.author}\n`
+          })
+          content += '\n'
+        } else {
+          content += `### 🔗 Repositorio secundario "${secondaryRepo.name}": Sin commits específicos\n\n`
+        }
+      }
+    }
+    
     content += '---\n\n'
   }
   
   return content
+}
+
+const loadSecondaryCommitsForRelease = async (release, secondaryRepo) => {
+  const releaseKey = `${secondaryRepo.id}-${release.id}`
+  
+  if (loadingSecondaryCommits.value.has(releaseKey) || release.commitsLoaded) {
+    return
+  }
+
+  loadingSecondaryCommits.value.add(releaseKey)
+  
+  try {
+    console.log(`🔄 Loading commits for secondary release: ${release.tag_name} in ${secondaryRepo.name}`)
+    
+    // Find the previous release to determine the commit range
+    const secondaryChangelog = secondaryChangelogs.value[secondaryRepo.id]
+    if (!secondaryChangelog) return
+    
+    const releases = secondaryChangelog.releases
+    const currentIndex = releases.findIndex(r => r.id === release.id)
+    const nextRelease = releases[currentIndex + 1]
+    
+    const fromTag = nextRelease ? nextRelease.tag_name : undefined
+    const toTag = release.tag_name
+    
+    console.log(`📊 Getting commits between ${fromTag || 'start'} and ${toTag} for secondary repo`)
+    
+    const response = await window.electronAPI.gitGetCommitsBetweenTags(
+      secondaryRepo.path, 
+      fromTag, 
+      toTag
+    )
+    
+    if (response.success && response.data?.commits) {
+      // Update the release object in the secondary changelog
+      release.commits = response.data.commits
+      release.commitsLoaded = true
+      
+      console.log(`✅ Loaded ${response.data.commits.length} commits for ${release.tag_name}`)
+    } else {
+      console.warn(`No commits found for ${release.tag_name}:`, response.error)
+      release.commits = []
+      release.commitsLoaded = true
+    }
+  } catch (err) {
+    console.error(`Error loading commits for secondary release ${release.tag_name}:`, err)
+    release.commits = []
+    release.commitsLoaded = true
+  } finally {
+    loadingSecondaryCommits.value.delete(releaseKey)
+  }
+}
+
+const toggleSecondaryRelease = async (release, secondaryRepo) => {
+  const releaseKey = `${secondaryRepo.id}-${release.id}`
+  
+  if (expandedSecondaryReleases.value.has(releaseKey)) {
+    expandedSecondaryReleases.value.delete(releaseKey)
+  } else {
+    expandedSecondaryReleases.value.add(releaseKey)
+    
+    // Load commits if not already loaded
+    if (!release.commitsLoaded) {
+      await loadSecondaryCommitsForRelease(release, secondaryRepo)
+    }
+  }
+}
+
+const loadSecondaryRepositoriesChangelogs = async () => {
+  try {
+    const mainRepo = repositories.value.find(r => r.id === selectedRepository.value)
+    if (!mainRepo || !mainRepo.is_main_repository) return
+    
+    console.log('🔗 Loading secondary repositories for:', mainRepo.name)
+    
+    // Get secondary repositories
+    const response = await window.electronAPI.dbGetSecondaryRepositories(mainRepo.id)
+    if (!response.success) {
+      console.warn('No secondary repositories found or error:', response.error)
+      return
+    }
+    
+    const secondaryRepoIds = (response.data.repositories || []).map(r => r.id)
+    if (secondaryRepoIds.length === 0) {
+      console.log('No secondary repositories configured')
+      return
+    }
+    
+    // Get full repository objects
+    secondaryRepos.value = repositories.value.filter(repo => 
+      secondaryRepoIds.includes(repo.id)
+    )
+    
+    console.log(`📂 Found ${secondaryRepos.value.length} secondary repositories:`, 
+      secondaryRepos.value.map(r => r.name))
+    
+    // Load changelog for each secondary repository
+    for (const secondaryRepo of secondaryRepos.value) {
+      try {
+        console.log(`🔄 Loading changelog for secondary repo: ${secondaryRepo.name}`)
+        
+        const changelog = {
+          repo: secondaryRepo,
+          releases: [],
+          pendingCommits: [],
+          currentBranch: null,
+          error: null
+        }
+        
+        // Load releases from tags with the main repository's prefix
+        const tagsResponse = await window.electronAPI.gitGetTagsWithDetails(
+          secondaryRepo.path, 
+          true, 
+          mainRepo.tag_prefix // Use main repo's prefix!
+        )
+        
+        if (tagsResponse.success) {
+          const tagDetails = tagsResponse.data || []
+          console.log(`🏷️ Found ${tagDetails.length} tags in secondary repo ${secondaryRepo.name} with main prefix "${mainRepo.tag_prefix}"`)
+          
+          // Transform tags to releases
+          changelog.releases = tagDetails.map(tag => ({
+            id: `${secondaryRepo.id}-${tag.name}`,
+            tag_name: tag.name,
+            version: tag.name.replace(mainRepo.tag_prefix || '', ''),
+            created_at: tag.date,
+            author: tag.author,
+            content: `Release ${tag.name} en repositorio secundario ${secondaryRepo.name}`,
+            repository_name: secondaryRepo.name,
+            repository_id: secondaryRepo.id,
+            isSecondary: true
+          }))
+        } else {
+          console.warn(`Error loading tags for secondary repo ${secondaryRepo.name}:`, tagsResponse.error)
+          changelog.error = tagsResponse.error
+        }
+        
+        // Get current branch
+        try {
+          const branchResponse = await window.electronAPI.gitGetCurrentBranch(secondaryRepo.path)
+          if (branchResponse.success) {
+            changelog.currentBranch = branchResponse.data.branch || branchResponse.data
+          }
+        } catch (err) {
+          console.warn(`Could not get current branch for ${secondaryRepo.name}:`, err)
+          changelog.currentBranch = 'unknown'
+        }
+        
+        secondaryChangelogs.value[secondaryRepo.id] = changelog
+        
+      } catch (err) {
+        console.error(`Error loading changelog for secondary repo ${secondaryRepo.name}:`, err)
+        secondaryChangelogs.value[secondaryRepo.id] = {
+          repo: secondaryRepo,
+          releases: [],
+          pendingCommits: [],
+          currentBranch: null,
+          error: err.message
+        }
+      }
+    }
+    
+    console.log('✅ Secondary repositories changelogs loaded')
+    
+  } catch (err) {
+    console.error('Error loading secondary repositories changelogs:', err)
+  }
 }
 
 // Lifecycle
