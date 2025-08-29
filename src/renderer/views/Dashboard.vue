@@ -5,7 +5,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold">¡Bienvenido a ReleaseFlow! ✨</h1>
-          <p class="text-sm opacity-90 mt-1">Versión {{ appVersion }} - Sistema de gestión de releases automatizado 🔄 ¡ACTUALIZADO!</p>
+          <p class="text-sm opacity-90 mt-1">Versión {{ appVersion }} - Sistema de gestión de releases automatizado</p>
         </div>
         <div class="text-4xl">
           🚀

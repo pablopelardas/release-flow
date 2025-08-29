@@ -6,7 +6,6 @@
 - [Nomenclatura de Branches](#nomenclatura-de-branches)
 - [Flujo de Trabajo](#flujo-de-trabajo)
 - [Ejemplos Prácticos](#ejemplos-prácticos)
-- [Herramientas Recomendadas](#herramientas-recomendadas)
 
 ## 🎯 Estructura de Commits
 
@@ -116,7 +115,7 @@ git commit -m "PROJ-123/test: Agregar tests para UpdaterService
 ### 3. Push y Pull Request
 ```bash
 git push origin PROJ-123/feat-auto-updater
-# Crear PR en GitHub/GitLab
+# Crear PR en codebase
 ```
 
 ### 4. Merge a Main
@@ -213,72 +212,6 @@ Cubre todos los aspectos:
 * Herramientas de automatización
 ```
 
-## 🛠️ Herramientas Recomendadas
-
-### 1. Template de Commit
-Crear template en `.gitmessage`:
-```bash
-# PROJ-XXX/tipo: <descripción>
-#
-# [Cuerpo del commit - explicar el QUÉ y POR QUÉ]
-#
-# Ejemplos de formato:
-# PROJ-123/feat: Implementar nuevo dashboard
-# PROJ-456/fix: Corregir validación de formularios
-# PROJ-789/docs: Actualizar documentación API
-
-git config commit.template .gitmessage
-```
-
-### 2. Alias de Git Útiles
-```bash
-# Configurar alias para el formato
-git config --global alias.commit-proj '!f() { git commit -m "PROJ-$1/$2: $3"; }; f'
-
-# Uso: git commit-proj 123 feat "Nueva funcionalidad"
-
-# Otros alias útiles
-git config --global alias.co checkout
-git config --global alias.br branch
-git config --global alias.st status
-git config --global alias.lg "log --oneline --graph --decorate --all"
-```
-
-### 3. Hook de Pre-commit
-Crear `.git/hooks/pre-commit` para validación:
-```bash
-#!/bin/bash
-# Validar formato de commit
-commit_msg=$(git log --format=%B -n 1 HEAD)
-if [[ ! $commit_msg =~ ^PROJ-[0-9]+/[a-z]+: ]]; then
-    echo "❌ Error: El commit debe seguir el formato PROJ-XXX/tipo: descripción"
-    echo "Ejemplo: PROJ-123/feat: Nueva funcionalidad"
-    exit 1
-fi
-echo "✅ Formato de commit válido"
-```
-
-### 4. Script de Creación de Branch
-```bash
-#!/bin/bash
-# create-branch.sh
-if [ $# -ne 3 ]; then
-    echo "Uso: ./create-branch.sh <numero-ticket> <tipo> <descripcion>"
-    echo "Ejemplo: ./create-branch.sh 123 feat auto-updater"
-    exit 1
-fi
-
-TICKET=$1
-TIPO=$2
-DESC=$3
-BRANCH_NAME="PROJ-${TICKET}/${TIPO}-${DESC}"
-
-git checkout main
-git pull origin main
-git checkout -b "$BRANCH_NAME"
-echo "✅ Branch creado: $BRANCH_NAME"
-```
-
 ## 📋 Checklist de Commit
 
 Antes de hacer commit, verificar:
@@ -288,7 +221,7 @@ Antes de hacer commit, verificar:
 - [ ] ✅ El tipo es válido
 - [ ] ✅ La descripción es clara y concisa
 - [ ] ✅ El cambio es atómico (una sola responsabilidad)
-- [ ] ✅ Los tests pasan
+- [ ] ✅ Los tests pasan (si corresponde)
 - [ ] ✅ No incluye archivos temporales o de configuración local
 - [ ] ✅ El branch sigue la nomenclatura correcta
 
@@ -348,27 +281,5 @@ PROJ-707/docs: Agregar documentación de API REST
 PROJ-808/docs: Actualizar guía de contribución
 PROJ-909/docs: Crear tutorial de instalación
 ```
-
-## 📊 Métricas y Seguimiento
-
-### KPIs de Calidad de Commits
-- **Formato**: 100% siguiendo PROJ-XXX/tipo: descripción
-- **Trazabilidad**: 100% con tickets JIRA válidos
-- **Atomicidad**: Promedio <200 líneas por commit
-- **Claridad**: Descripciones autoexplicativas sin contexto adicional
-
-### Revisión Periódica
-- Review semanal de commits del equipo
-- Identificar patrones problemáticos
-- Sesiones de formación según necesidad
-- Actualización de herramientas y procesos
-
-### Automatización Recomendada
-- Validación automática en pre-commit hooks
-- Integración con JIRA para verificación de tickets
-- Notificaciones automáticas en commits mal formateados
-- Reportes automáticos de calidad de commits
-
----
 
 > **Nota**: Este formato es obligatorio para todos los commits. Mantiene trazabilidad directa con JIRA y facilita el seguimiento de cambios por ticket.

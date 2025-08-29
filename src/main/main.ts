@@ -70,10 +70,10 @@ const isViteMode = process.env.NODE_ENV === 'development' // Solo para desarroll
 const isDebugMode = process.env.ELECTRON_DEBUG === 'true'
 
 // Configuración del Auto-Updater para Squirrel.Windows
-if (!isDev && process.platform === 'win32') {
+if (process.platform === 'win32') {
   try {
     // Configurar URL del servidor de actualizaciones
-    const feedURL = 'http://localhost:3001/releases/'
+    const feedURL = 'https://devserver01.intuit.ar/ReleaseFlow/releases/'
     autoUpdater.setFeedURL({
       url: feedURL,
       headers: {
@@ -81,7 +81,12 @@ if (!isDev && process.platform === 'win32') {
       }
     })
     
-    console.log('Auto-updater configurado con URL:', feedURL)
+    console.log(`Auto-updater configurado con URL: ${feedURL} (Modo: ${isDev ? 'DEV - solo verificar' : 'PROD - verificar y descargar'})`)
+    
+    // En desarrollo, interceptar la descarga
+    if (isDev) {
+      console.log('[AutoUpdater] MODO DESARROLLO: Solo verificación, descarga deshabilitada')
+    }
     
     // Configurar eventos del updater
     autoUpdater.on('checking-for-update', () => {
@@ -90,6 +95,14 @@ if (!isDev && process.platform === 'win32') {
     
     autoUpdater.on('update-available', () => {
       console.log('[AutoUpdater] ¡Actualización disponible!')
+      
+      if (isDev) {
+        console.log('[AutoUpdater] MODO DESARROLLO: Actualización detectada pero descarga cancelada')
+        // En desarrollo, no descargar automáticamente
+        return
+      }
+      
+      console.log('[AutoUpdater] MODO PRODUCCIÓN: Iniciando descarga automática...')
     })
     
     autoUpdater.on('update-not-available', () => {
@@ -1148,15 +1161,27 @@ ipcMain.handle('db-get-table-structure', async (_event) => {
 
 // Auto-updater handlers
 ipcMain.handle('app-check-for-updates', async () => {
-  if (isDev) {
-    return { success: false, error: 'Actualizaciones no disponibles en desarrollo' }
-  }
-  
   try {
+    console.log('[AutoUpdater] Verificando actualizaciones manualmente...')
+    console.log('[AutoUpdater] URL configurada:', 'https://devserver01.intuit.ar/ReleaseFlow/releases/')
+    console.log('[AutoUpdater] Versión actual:', app.getVersion())
+    console.log('[AutoUpdater] Modo desarrollo:', isDev)
+    console.log('[AutoUpdater] Plataforma:', process.platform)
+    console.log('[AutoUpdater] Aplicación empaquetada:', app.isPackaged)
+    
     const result = await autoUpdater.checkForUpdates()
+    console.log('[AutoUpdater] Resultado de checkForUpdates:', result)
+    console.log('[AutoUpdater] Tipo del resultado:', typeof result)
+    if (result !== undefined && result !== null && typeof result === 'object') {
+      console.log('[AutoUpdater] Keys del resultado:', Object.keys(result))
+    } else {
+      console.log('[AutoUpdater] Keys del resultado: null/undefined')
+    }
+    
     return { success: true, data: result }
   } catch (error) {
-    console.error('Error checking for updates:', error)
+    console.error('[AutoUpdater] Error checking for updates:', error)
+    console.error('[AutoUpdater] Stack trace:', error instanceof Error ? error.stack : 'No stack')
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 })

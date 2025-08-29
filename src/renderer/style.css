@@ -317,27 +317,42 @@ body {
   z-index: 999;
 }
 
-/* Modal responsive styles - scroll en pantallas pequeñas */
-@media (max-height: 700px) {
+/* Modal responsive styles - scroll para todos los modales */
+.p-dialog {
+  max-height: 95vh;
+  margin: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.p-dialog .p-dialog-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--surface-border);
+  padding: 1.5rem;
+}
+
+.p-dialog .p-dialog-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--surface-border);
+  padding: 1rem 1.5rem;
+}
+
+.p-dialog .p-dialog-content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+/* Padding interno del contenido */
+.p-dialog .p-dialog-content > * {
+  padding: 1.5rem;
+}
+
+/* Ajustes para pantallas pequeñas */
+@media (max-height: 800px) {
   .p-dialog {
     max-height: 90vh;
-    margin: 1rem;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .p-dialog .p-dialog-content {
-    overflow-y: auto;
-    flex: 1;
-    max-height: none;
-  }
-
-  .p-dialog .p-dialog-header {
-    flex-shrink: 0;
-  }
-
-  .p-dialog .p-dialog-footer {
-    flex-shrink: 0;
   }
 }
 
@@ -347,8 +362,6 @@ body {
     max-height: calc(100vh - 2rem);
     margin: 1rem;
     width: auto;
-    display: flex;
-    flex-direction: column;
   }
 
   .p-dialog .p-dialog-content {
@@ -445,6 +458,37 @@ body {
 
 .dark * {
   scrollbar-color: #64748b #1e293b;
+}
+
+/* Modal personalizado responsive styles */
+.fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center {
+  padding: 1rem;
+}
+
+.fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center > div {
+  max-height: 90vh;
+  overflow-y: auto;
+  max-width: calc(100vw - 2rem);
+}
+
+/* Mantener ancho específico para modales con w-96 */
+.fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center > .w-96 {
+  width: 24rem; /* w-96 */
+  max-width: calc(100vw - 2rem);
+}
+
+/* Para pantallas más pequeñas */
+@media (max-height: 700px) {
+  .fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center > div {
+    max-height: 85vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center > .w-96 {
+    width: 100%;
+    max-width: calc(100vw - 2rem);
+  }
 }
 
 /* Electron specific styles */
